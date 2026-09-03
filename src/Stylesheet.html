@@ -171,13 +171,20 @@
   .delivery-dates { display: flex; flex-wrap: wrap; gap: 8px; }
   .date-chip {
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 14px;
     padding: 8px 14px;
     font-size: 13px;
     cursor: pointer;
     background: #fff;
   }
   .date-chip.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .chip-deadline {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .date-chip.selected .chip-deadline { color: rgba(255,255,255,0.85); }
   .primary-btn {
     width: 100%;
     background: var(--primary);

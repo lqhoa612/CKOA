@@ -20,9 +20,17 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 | AppTitle | Đặt hàng Bếp Trung Tâm |
 | GoogleClientId | *(điền ở bước 3)* |
 | CentralKitchenEmail | bep.trungtam@gmail.com |
-| OrderCutoffHour | 9 |
+| OrderCutoffHour | 16 |
+| OrderCutoffDaysBefore | 1 |
 
-`OrderCutoffHour`: giờ chốt đơn trong ngày (0-23). Nếu hôm nay là thứ 4/6 nhưng đã qua giờ này, app sẽ tự chuyển sang ngày giao kế tiếp.
+**Hạn chốt đơn** = `OrderCutoffHour` giờ, của `OrderCutoffDaysBefore` ngày trước ngày giao. Cấu hình mặc định ở trên nghĩa là **16:00 ngày hôm trước**:
+
+| Ngày giao | Hạn chốt đơn |
+|---|---|
+| Thứ 4 | 16:00 thứ 3 |
+| Thứ 6 | 16:00 thứ 5 |
+
+App chỉ hiển thị những ngày giao còn trong hạn, và kiểm tra lại hạn này ở server khi gửi đơn (nếu quá hạn ngay lúc bấm gửi thì đơn bị từ chối kèm thông báo). Muốn đổi thành 15:00 chỉ cần sửa `OrderCutoffHour` thành `15`; muốn chốt sớm 2 ngày thì đặt `OrderCutoffDaysBefore` = `2`.
 
 ### Tab `Restaurants`
 
@@ -103,7 +111,7 @@ Mỗi khi sửa code, tạo **New deployment** (hoặc "Manage deployments" → 
 - **Thêm/xoá/sửa món & giá**: sửa trực tiếp tab `Items`.
 - **Thêm nhà hàng mới**: thêm dòng vào tab `Restaurants` với email Google của họ.
 - **Đổi email bếp trung tâm nhận đơn**: sửa `CentralKitchenEmail` trong tab `Settings`.
-- **Đổi giờ chốt đơn**: sửa `OrderCutoffHour` trong tab `Settings`.
+- **Đổi hạn chốt đơn**: sửa `OrderCutoffHour` / `OrderCutoffDaysBefore` trong tab `Settings`.
 - **Lịch sử đơn hàng**: xem trực tiếp tab `Orders`, hoặc trong app mục "Đơn đã đặt" (mỗi nhà hàng chỉ thấy đơn của mình).
 
 ## Ghi chú kỹ thuật

@@ -60,10 +60,17 @@ function getConfig_() {
     appTitle: config.AppTitle || 'Central Kitchen Ordering',
     googleClientId: config.GoogleClientId || '',
     centralKitchenEmail: config.CentralKitchenEmail || '',
-    orderCutoffHour: config.OrderCutoffHour !== undefined && config.OrderCutoffHour !== ''
-      ? Number(config.OrderCutoffHour)
-      : 9
+    // Hạn chốt đơn: OrderCutoffHour giờ, của OrderCutoffDaysBefore ngày trước ngày giao.
+    // Mặc định: 16:00 ngày hôm trước.
+    orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
+    orderCutoffDaysBefore: numberOr_(config.OrderCutoffDaysBefore, 1)
   };
+}
+
+function numberOr_(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  var n = Number(value);
+  return isNaN(n) ? fallback : n;
 }
 
 function getSheet_(name) {
@@ -185,11 +192,15 @@ function getActiveItems_() {
   return items;
 }
 
+/**
+ * Ngày giao hợp lệ = thứ 4 / thứ 6 sắp tới mà hạn chốt đơn vẫn chưa qua.
+ * Hạn chốt đơn của một ngày giao = OrderCutoffHour giờ, của OrderCutoffDaysBefore
+ * ngày trước đó (mặc định 16:00 ngày hôm trước).
+ */
 function getUpcomingDeliveryDates_() {
   var config = getConfig_();
   var tz = 'Asia/Ho_Chi_Minh';
   var now = new Date();
-  var cutoffHour = isNaN(config.orderCutoffHour) ? 9 : config.orderCutoffHour;
   var dates = [];
   var cursor = new Date(now);
   cursor.setHours(0, 0, 0, 0);
@@ -197,14 +208,21 @@ function getUpcomingDeliveryDates_() {
   for (var d = 0; dates.length < UPCOMING_DELIVERY_COUNT && d < 60; d++) {
     var check = new Date(cursor.getTime() + d * 86400000);
     if (DELIVERY_WEEKDAYS.indexOf(check.getDay()) === -1) continue;
-    var isToday = d === 0;
-    if (isToday && now.getHours() >= cutoffHour) continue; // past cutoff, skip today
+    var deadline = cutoffDeadlineFor_(check, config);
+    if (now.getTime() >= deadline.getTime()) continue; // đã qua hạn chốt đơn
     dates.push({
       iso: Utilities.formatDate(check, tz, 'yyyy-MM-dd'),
-      label: Utilities.formatDate(check, tz, 'EEEE, dd/MM/yyyy')
+      label: Utilities.formatDate(check, tz, 'EEEE, dd/MM/yyyy'),
+      deadlineLabel: Utilities.formatDate(deadline, tz, 'HH:mm dd/MM')
     });
   }
   return dates;
+}
+
+function cutoffDeadlineFor_(deliveryDate, config) {
+  var deadline = new Date(deliveryDate.getTime() - config.orderCutoffDaysBefore * 86400000);
+  deadline.setHours(config.orderCutoffHour, 0, 0, 0);
+  return deadline;
 }
 
 /**
@@ -235,9 +253,14 @@ function submitOrder(idToken, order) {
   if (!order.deliveryDate) {
     throw new Error('Vui lòng chọn ngày giao hàng.');
   }
-  var validDates = getUpcomingDeliveryDates_().map(function (d) { return d.iso; });
-  if (validDates.indexOf(order.deliveryDate) === -1) {
-    throw new Error('Ngày giao hàng không hợp lệ. Vui lòng chọn lại.');
+  var availableDates = getUpcomingDeliveryDates_();
+  var selectedDate = availableDates.filter(function (d) { return d.iso === order.deliveryDate; })[0];
+  if (!selectedDate) {
+    var cutoffConfig = getConfig_();
+    throw new Error(
+      'Ngày giao này đã quá hạn chốt đơn (' + cutoffConfig.orderCutoffHour + ':00, ' +
+      cutoffConfig.orderCutoffDaysBefore + ' ngày trước ngày giao) hoặc không hợp lệ. Vui lòng chọn ngày khác.'
+    );
   }
   var address = (order.deliveryAddress && String(order.deliveryAddress).trim()) || restaurant.address;
   if (!address) {
@@ -269,9 +292,7 @@ function submitOrder(idToken, order) {
   }
 
   var orderId = 'ORD' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyMMdd-HHmmss');
-  var deliveryLabel = validDates.length
-    ? (getUpcomingDeliveryDates_().filter(function (d) { return d.iso === order.deliveryDate; })[0] || {}).label
-    : order.deliveryDate;
+  var deliveryLabel = selectedDate.label;
 
   var ordersSheet = getSheet_(SHEET_NAMES.ORDERS);
   ordersSheet.appendRow([
