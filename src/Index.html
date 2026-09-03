@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <?!= include('Stylesheet'); ?>
+</head>
+<body>
+
+  <!-- Login screen -->
+  <section id="login-screen" class="screen">
+    <div class="login-card">
+      <h1><?= appTitle ?></h1>
+      <p class="muted">Đăng nhập bằng tài khoản Google của nhà hàng để đặt hàng từ bếp trung tâm.</p>
+      <div id="g_id_signin_container"></div>
+      <p id="login-error" class="error hidden"></p>
+    </div>
+  </section>
+
+  <!-- Main app -->
+  <section id="app-screen" class="screen hidden">
+    <header class="app-header">
+      <div>
+        <div class="restaurant-name" id="restaurant-name"></div>
+        <div class="muted small" id="restaurant-email"></div>
+      </div>
+      <nav class="header-nav">
+        <button id="nav-catalog" class="nav-btn active">Đặt hàng</button>
+        <button id="nav-history" class="nav-btn">Đơn đã đặt</button>
+        <button id="logout-btn" class="nav-btn ghost">Đăng xuất</button>
+      </nav>
+    </header>
+
+    <!-- Catalog view -->
+    <main id="catalog-view">
+      <div id="catalog-list"></div>
+    </main>
+
+    <!-- History view -->
+    <main id="history-view" class="hidden">
+      <div id="history-list"></div>
+    </main>
+
+    <!-- Cart bar -->
+    <div id="cart-bar" class="cart-bar hidden">
+      <div class="cart-summary">
+        <span id="cart-count">0</span> món &middot; <span id="cart-total">0đ</span>
+      </div>
+      <button id="checkout-btn">Xem giỏ hàng</button>
+    </div>
+  </section>
+
+  <!-- Checkout modal -->
+  <div id="checkout-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Xác nhận đơn hàng</h2>
+        <button id="close-checkout" class="icon-btn">&times;</button>
+      </div>
+      <div id="checkout-items"></div>
+      <div class="checkout-total">Tổng cộng: <strong id="checkout-total">0đ</strong></div>
+
+      <label class="field-label">Ngày giao hàng</label>
+      <div id="delivery-dates" class="delivery-dates"></div>
+
+      <label class="field-label" for="orderer-name">Tên người đặt</label>
+      <input type="text" id="orderer-name" placeholder="Nhập tên của bạn">
+
+      <label class="field-label" for="delivery-address">Địa chỉ giao hàng</label>
+      <textarea id="delivery-address" rows="2" placeholder="Địa chỉ nhận hàng"></textarea>
+
+      <p id="order-error" class="error hidden"></p>
+
+      <button id="submit-order-btn" class="primary-btn">Gửi đơn hàng</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+    var CKOA_CONFIG = {
+      googleClientId: <?!= JSON.stringify(googleClientId) ?>
+    };
+  </script>
+  <?!= include('JavaScript'); ?>
+</body>
+</html>
