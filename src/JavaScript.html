@@ -1,0 +1,322 @@
+<script>
+(function () {
+  'use strict';
+
+  var state = {
+    idToken: null,
+    restaurant: null,
+    items: [],
+    deliveryDates: [],
+    selectedDate: null,
+    cart: {} // id -> qty
+  };
+
+  // ---------------------------------------------------------------------
+  // Login
+  // ---------------------------------------------------------------------
+
+  window.onload = function () {
+    if (!CKOA_CONFIG.googleClientId) {
+      showLoginError('Ứng dụng chưa được cấu hình Google Client ID. Vui lòng liên hệ quản trị viên.');
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: CKOA_CONFIG.googleClientId,
+      callback: handleCredentialResponse
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('g_id_signin_container'),
+      { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' }
+    );
+  };
+
+  function handleCredentialResponse(response) {
+    hideLoginError();
+    state.idToken = response.credential;
+    google.script.run
+      .withSuccessHandler(onAuthenticated)
+      .withFailureHandler(function (err) { showLoginError(err.message || String(err)); })
+      .authenticate(state.idToken);
+  }
+
+  function onAuthenticated(result) {
+    if (!result.ok) {
+      showLoginError(result.message);
+      state.idToken = null;
+      return;
+    }
+    state.restaurant = result.restaurant;
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app-screen').classList.remove('hidden');
+    document.getElementById('restaurant-name').textContent = state.restaurant.name;
+    document.getElementById('restaurant-email').textContent = state.restaurant.email;
+    loadOrderPageData();
+  }
+
+  function showLoginError(msg) {
+    var el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+  function hideLoginError() {
+    document.getElementById('login-error').classList.add('hidden');
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', function () {
+    state.idToken = null;
+    state.restaurant = null;
+    state.cart = {};
+    document.getElementById('app-screen').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+    if (window.google && google.accounts && google.accounts.id) {
+      google.accounts.id.disableAutoSelect();
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Load catalog + delivery dates
+  // ---------------------------------------------------------------------
+
+  function loadOrderPageData() {
+    google.script.run
+      .withSuccessHandler(function (data) {
+        state.items = data.items;
+        state.deliveryDates = data.deliveryDates;
+        if (state.deliveryDates.length) state.selectedDate = state.deliveryDates[0].iso;
+        renderCatalog();
+      })
+      .withFailureHandler(function (err) { toast(err.message || String(err)); })
+      .getOrderPageData(state.idToken);
+  }
+
+  function renderCatalog() {
+    var container = document.getElementById('catalog-list');
+    if (!state.items.length) {
+      container.innerHTML = '<div class="empty-state">Hiện chưa có món nào để đặt.</div>';
+      return;
+    }
+    var byCategory = {};
+    var order = [];
+    state.items.forEach(function (item) {
+      if (!byCategory[item.category]) {
+        byCategory[item.category] = [];
+        order.push(item.category);
+      }
+      byCategory[item.category].push(item);
+    });
+
+    var html = '';
+    order.forEach(function (cat) {
+      html += '<div class="category-block"><div class="category-title">' + escapeHtml(cat) + '</div>';
+      byCategory[cat].forEach(function (item) {
+        var qty = state.cart[item.id] || 0;
+        html +=
+          '<div class="item-card" data-id="' + item.id + '">' +
+          '<div class="item-info">' +
+          '<div class="item-name">' + escapeHtml(item.name) + '</div>' +
+          '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) + '</div>' +
+          '</div>' +
+          '<div class="qty-control">' +
+          '<button class="qty-btn qty-minus" aria-label="Giảm">-</button>' +
+          '<span class="qty-value">' + qty + '</span>' +
+          '<button class="qty-btn primary qty-plus" aria-label="Tăng">+</button>' +
+          '</div></div>';
+      });
+      html += '</div>';
+    });
+    container.innerHTML = html;
+
+    container.querySelectorAll('.item-card').forEach(function (card) {
+      var id = card.getAttribute('data-id');
+      card.querySelector('.qty-plus').addEventListener('click', function () { changeQty(id, 1); });
+      card.querySelector('.qty-minus').addEventListener('click', function () { changeQty(id, -1); });
+    });
+  }
+
+  function changeQty(id, delta) {
+    var current = state.cart[id] || 0;
+    var next = Math.max(0, current + delta);
+    if (next === 0) delete state.cart[id];
+    else state.cart[id] = next;
+    renderCatalog();
+    renderCartBar();
+  }
+
+  function cartLines() {
+    return Object.keys(state.cart).map(function (id) {
+      var item = state.items.filter(function (i) { return i.id === id; })[0];
+      if (!item) return null;
+      return { id: id, name: item.name, unit: item.unit, price: item.price, qty: state.cart[id] };
+    }).filter(Boolean);
+  }
+
+  function cartTotal() {
+    return cartLines().reduce(function (sum, l) { return sum + l.price * l.qty; }, 0);
+  }
+
+  function renderCartBar() {
+    var lines = cartLines();
+    var bar = document.getElementById('cart-bar');
+    if (!lines.length) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    var count = lines.reduce(function (s, l) { return s + l.qty; }, 0);
+    document.getElementById('cart-count').textContent = count;
+    document.getElementById('cart-total').textContent = formatCurrency(cartTotal());
+  }
+
+  // ---------------------------------------------------------------------
+  // Checkout modal
+  // ---------------------------------------------------------------------
+
+  document.getElementById('checkout-btn').addEventListener('click', openCheckout);
+  document.getElementById('close-checkout').addEventListener('click', closeCheckout);
+
+  function openCheckout() {
+    var lines = cartLines();
+    if (!lines.length) return;
+
+    var itemsHtml = lines.map(function (l) {
+      return '<div class="checkout-line"><span>' + escapeHtml(l.name) + ' x' + l.qty + '</span><span>' +
+        formatCurrency(l.price * l.qty) + '</span></div>';
+    }).join('');
+    document.getElementById('checkout-items').innerHTML = itemsHtml;
+    document.getElementById('checkout-total').textContent = formatCurrency(cartTotal());
+
+    var datesHtml = state.deliveryDates.map(function (d) {
+      var selected = d.iso === state.selectedDate ? ' selected' : '';
+      return '<div class="date-chip' + selected + '" data-iso="' + d.iso + '">' + escapeHtml(d.label) + '</div>';
+    }).join('');
+    document.getElementById('delivery-dates').innerHTML = datesHtml ||
+      '<span class="muted small">Không có ngày giao hợp lệ, vui lòng quay lại sau.</span>';
+    document.querySelectorAll('.date-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        state.selectedDate = chip.getAttribute('data-iso');
+        document.querySelectorAll('.date-chip').forEach(function (c) { c.classList.remove('selected'); });
+        chip.classList.add('selected');
+      });
+    });
+
+    document.getElementById('delivery-address').value = state.restaurant.address || '';
+    document.getElementById('order-error').classList.add('hidden');
+    document.getElementById('checkout-modal').classList.remove('hidden');
+  }
+
+  function closeCheckout() {
+    document.getElementById('checkout-modal').classList.add('hidden');
+  }
+
+  document.getElementById('submit-order-btn').addEventListener('click', function () {
+    var errorEl = document.getElementById('order-error');
+    errorEl.classList.add('hidden');
+
+    var ordererName = document.getElementById('orderer-name').value.trim();
+    var deliveryAddress = document.getElementById('delivery-address').value.trim();
+    var lines = cartLines();
+
+    if (!lines.length) { showOrderError('Giỏ hàng đang trống.'); return; }
+    if (!state.selectedDate) { showOrderError('Vui lòng chọn ngày giao hàng.'); return; }
+    if (!ordererName) { showOrderError('Vui lòng nhập tên người đặt.'); return; }
+    if (!deliveryAddress) { showOrderError('Vui lòng nhập địa chỉ giao hàng.'); return; }
+
+    var btn = document.getElementById('submit-order-btn');
+    btn.disabled = true;
+    btn.textContent = 'Đang gửi...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Gửi đơn hàng';
+        if (!result.ok) { showOrderError(result.message || 'Có lỗi xảy ra.'); return; }
+        state.cart = {};
+        closeCheckout();
+        renderCatalog();
+        renderCartBar();
+        toast('Đã gửi đơn hàng #' + result.orderId + ' thành công!');
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Gửi đơn hàng';
+        showOrderError(err.message || String(err));
+      })
+      .submitOrder(state.idToken, {
+        items: lines.map(function (l) { return { id: l.id, qty: l.qty }; }),
+        deliveryDate: state.selectedDate,
+        ordererName: ordererName,
+        deliveryAddress: deliveryAddress
+      });
+  });
+
+  function showOrderError(msg) {
+    var el = document.getElementById('order-error');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+
+  // ---------------------------------------------------------------------
+  // Navigation: catalog vs history
+  // ---------------------------------------------------------------------
+
+  document.getElementById('nav-catalog').addEventListener('click', function () { switchView('catalog'); });
+  document.getElementById('nav-history').addEventListener('click', function () { switchView('history'); });
+
+  function switchView(view) {
+    document.getElementById('catalog-view').classList.toggle('hidden', view !== 'catalog');
+    document.getElementById('history-view').classList.toggle('hidden', view !== 'history');
+    document.getElementById('cart-bar').classList.toggle('hidden', view !== 'catalog' || !cartLines().length);
+    document.getElementById('nav-catalog').classList.toggle('active', view === 'catalog');
+    document.getElementById('nav-history').classList.toggle('active', view === 'history');
+    if (view === 'history') loadHistory();
+  }
+
+  function loadHistory() {
+    var container = document.getElementById('history-list');
+    container.innerHTML = '<div class="empty-state">Đang tải...</div>';
+    google.script.run
+      .withSuccessHandler(renderHistory)
+      .withFailureHandler(function (err) { container.innerHTML = '<div class="empty-state">' + escapeHtml(err.message || String(err)) + '</div>'; })
+      .getMyOrders(state.idToken);
+  }
+
+  function renderHistory(orders) {
+    var container = document.getElementById('history-list');
+    if (!orders.length) {
+      container.innerHTML = '<div class="empty-state">Chưa có đơn hàng nào.</div>';
+      return;
+    }
+    container.innerHTML = orders.map(function (o) {
+      var itemsSummary = o.items.map(function (i) { return i.name + ' x' + i.qty; }).join(', ');
+      return (
+        '<div class="order-card">' +
+        '<div class="order-top"><span>#' + escapeHtml(o.orderId) + '</span><span>' + formatCurrency(o.total) + '</span></div>' +
+        '<div class="order-items">' + escapeHtml(itemsSummary) + '</div>' +
+        '<div class="order-items">Giao: ' + escapeHtml(o.deliveryDate) + ' &middot; Đặt lúc: ' + escapeHtml(o.timestamp) + '</div>' +
+        '<span class="status-badge">' + escapeHtml(o.status) + '</span>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  // ---------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------
+
+  function formatCurrency(n) {
+    return Number(n || 0).toLocaleString('vi-VN') + 'đ';
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 3500);
+  }
+})();
+</script>

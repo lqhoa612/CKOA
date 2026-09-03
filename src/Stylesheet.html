@@ -1,0 +1,229 @@
+<style>
+  :root {
+    --primary: #d9480f;
+    --primary-dark: #b8380a;
+    --bg: #f7f5f2;
+    --card: #ffffff;
+    --text: #222;
+    --muted: #767676;
+    --border: #e6e2dc;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .hidden { display: none !important; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+
+  /* Login */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .login-card h1 { font-size: 22px; margin-bottom: 8px; }
+  .login-card p { margin-bottom: 20px; }
+  #g_id_signin_container { display: flex; justify-content: center; }
+
+  /* App shell */
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .restaurant-name { font-weight: 600; font-size: 16px; }
+  .header-nav { display: flex; gap: 6px; }
+  .nav-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .nav-btn.active { background: var(--primary); color: #fff; }
+  .nav-btn.ghost { color: var(--muted); }
+
+  main { padding: 12px 14px 90px; max-width: 640px; margin: 0 auto; }
+
+  .category-block { margin-bottom: 20px; }
+  .category-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 18px 0 8px;
+  }
+  .item-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .item-info { flex: 1; padding-right: 10px; }
+  .item-name { font-weight: 600; font-size: 15px; }
+  .item-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .qty-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .qty-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .qty-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .qty-value { min-width: 20px; text-align: center; font-weight: 600; }
+
+  /* Cart bar */
+  .cart-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.12);
+  }
+  .cart-bar button {
+    background: #fff;
+    color: var(--primary);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 30;
+  }
+  .modal-content {
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+  }
+  @media (min-width: 520px) {
+    .modal { align-items: center; }
+    .modal-content { border-radius: var(--radius); }
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .icon-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); }
+  .checkout-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .checkout-total { text-align: right; margin: 12px 0; font-size: 15px; }
+  .field-label { display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 600; }
+  input[type="text"], textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .delivery-dates { display: flex; flex-wrap: wrap; gap: 8px; }
+  .date-chip {
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    background: #fff;
+  }
+  .date-chip.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .primary-btn {
+    width: 100%;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 13px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 18px;
+    cursor: pointer;
+  }
+  .primary-btn:disabled { opacity: 0.6; cursor: default; }
+  .error { color: #c0392b; font-size: 13px; margin-top: 10px; }
+
+  /* History */
+  .order-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .order-card .order-top { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 4px; }
+  .order-card .order-items { font-size: 13px; color: var(--muted); }
+  .status-badge {
+    display: inline-block;
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 50;
+  }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; }
+</style>
