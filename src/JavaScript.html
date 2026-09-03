@@ -184,7 +184,10 @@
 
     var datesHtml = state.deliveryDates.map(function (d) {
       var selected = d.iso === state.selectedDate ? ' selected' : '';
-      return '<div class="date-chip' + selected + '" data-iso="' + d.iso + '">' + escapeHtml(d.label) + '</div>';
+      return '<div class="date-chip' + selected + '" data-iso="' + d.iso + '">' +
+        escapeHtml(d.label) +
+        '<span class="chip-deadline">Chốt đơn: ' + escapeHtml(d.deadlineLabel) + '</span>' +
+        '</div>';
     }).join('');
     document.getElementById('delivery-dates').innerHTML = datesHtml ||
       '<span class="muted small">Không có ngày giao hợp lệ, vui lòng quay lại sau.</span>';
