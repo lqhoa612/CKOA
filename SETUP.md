@@ -17,18 +17,18 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 
 | Key | Value |
 |---|---|
-| AppTitle | Đặt hàng Bếp Trung Tâm |
+| AppTitle | Central Kitchen Ordering |
 | GoogleClientId | *(điền ở bước 3)* |
-| CentralKitchenEmail | bep.trungtam@gmail.com |
+| CentralKitchenEmail | centralkitchen@example.com |
 | OrderCutoffHour | 16 |
 | OrderCutoffDaysBefore | 1 |
 
-**Hạn chốt đơn** = `OrderCutoffHour` giờ, của `OrderCutoffDaysBefore` ngày trước ngày giao. Cấu hình mặc định ở trên nghĩa là **16:00 ngày hôm trước**:
+**Hạn chốt đơn** = `OrderCutoffHour` giờ, của `OrderCutoffDaysBefore` ngày trước ngày giao. Cấu hình mặc định ở trên nghĩa là **16:00 (4pm) ngày hôm trước**:
 
 | Ngày giao | Hạn chốt đơn |
 |---|---|
-| Thứ 4 | 16:00 thứ 3 |
-| Thứ 6 | 16:00 thứ 5 |
+| Thứ 4 | 4pm thứ 3 |
+| Thứ 6 | 4pm thứ 5 |
 
 App chỉ hiển thị những ngày giao còn trong hạn, và kiểm tra lại hạn này ở server khi gửi đơn (nếu quá hạn ngay lúc bấm gửi thì đơn bị từ chối kèm thông báo). Muốn đổi thành 15:00 chỉ cần sửa `OrderCutoffHour` thành `15`; muốn chốt sớm 2 ngày thì đặt `OrderCutoffDaysBefore` = `2`.
 
@@ -36,8 +36,8 @@ App chỉ hiển thị những ngày giao còn trong hạn, và kiểm tra lại
 
 | Email | RestaurantName | DeliveryAddress | Active |
 |---|---|---|---|
-| nhahang1@gmail.com | Nhà hàng Quận 1 | 12 Nguyễn Huệ, Q1 | TRUE |
-| nhahang2@gmail.com | Nhà hàng Quận 3 | 45 Võ Văn Tần, Q3 | TRUE |
+| hobartcbd@example.com | Hobart CBD | 45 Elizabeth St, Hobart TAS 7000 | TRUE |
+| sandybay@example.com | Sandy Bay | 12 King St, Sandy Bay TAS 7005 | TRUE |
 
 Mỗi dòng là một tài khoản Google được phép đăng nhập + tên nhà hàng sẽ hiện trên đơn/email. Đặt `Active` = `FALSE` để tạm khoá một nhà hàng mà không cần xoá dòng.
 
@@ -45,10 +45,11 @@ Mỗi dòng là một tài khoản Google được phép đăng nhập + tên nh
 
 | ID | Category | Name | Unit | Price | Active |
 |---|---|---|---|---|---|
-| | Rau củ | Cà rốt sơ chế | kg | 25000 | TRUE |
-| | Thịt | Thịt heo xay | kg | 120000 | TRUE |
-| | Nước sốt | Sốt cà chua | lít | 60000 | TRUE |
+| | Prepped Vegetables | Julienned carrots | kg | 8.50 | TRUE |
+| | Prepped Meat | Pork mince | kg | 14.90 | TRUE |
+| | Sauces & Stocks | Tomato sauce base | L | 9.00 | TRUE |
 
+- Cột `Price` là **AUD**, nhập số thuần (`8.50`), không kèm ký hiệu `$`. App tự hiển thị thành `$8.50`.
 - Cột `ID` để trống, app sẽ tự sinh mã lần đầu đọc và ghi lại vào sheet — bạn không cần tự quản lý ID.
 - Đây chính là nơi **admin chỉnh sửa danh sách món**: thêm dòng mới, xoá/đặt `Active=FALSE`, sửa giá trực tiếp trong Sheet. App sẽ luôn hiển thị dữ liệu mới nhất, không cần deploy lại.
 
