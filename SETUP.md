@@ -117,5 +117,6 @@ Mỗi khi sửa code, tạo **New deployment** (hoặc "Manage deployments" → 
 ## Ghi chú kỹ thuật
 
 - Ngày giao hàng cố định thứ 4 và thứ 6 hàng tuần (`DELIVERY_WEEKDAYS` trong `Code.gs`), có thể sửa nếu cần thêm ngày khác.
+- Múi giờ đặt ở `timeZone` trong `appsscript.json` (hiện là `Australia/Hobart`) và được dùng cho toàn bộ app qua `Session.getScriptTimeZone()` — đổi một chỗ đó là đổi hết ngày giao, hạn chốt đơn và mã đơn hàng. Sau khi sửa manifest nhớ deploy version mới. Phép cộng ngày trong `Code.gs` tính theo lịch nên không lệch vào tuần đổi giờ mùa hè (DST).
 - Xác thực đăng nhập được kiểm tra lại ở server (`Code.gs`) qua Google tokeninfo endpoint mỗi lần gọi API quan trọng (xem catalog, gửi đơn) — không chỉ tin tưởng phía trình duyệt.
 - Vì đây là app nội bộ quy mô nhỏ, không dùng database ngoài — mọi dữ liệu nằm trong chính Google Sheet để admin dễ xem/sửa trực tiếp.
