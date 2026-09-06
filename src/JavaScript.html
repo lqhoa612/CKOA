@@ -17,7 +17,7 @@
 
   window.onload = function () {
     if (!CKOA_CONFIG.googleClientId) {
-      showLoginError('Ứng dụng chưa được cấu hình Google Client ID. Vui lòng liên hệ quản trị viên.');
+      showLoginError('This app has no Google Client ID configured. Please contact your administrator.');
       return;
     }
     google.accounts.id.initialize({
@@ -26,7 +26,7 @@
     });
     google.accounts.id.renderButton(
       document.getElementById('g_id_signin_container'),
-      { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' }
+      { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'en-AU' }
     );
   };
 
@@ -74,7 +74,7 @@
   });
 
   // ---------------------------------------------------------------------
-  // Load catalog + delivery dates
+  // Load catalogue + delivery dates
   // ---------------------------------------------------------------------
 
   function loadOrderPageData() {
@@ -92,7 +92,7 @@
   function renderCatalog() {
     var container = document.getElementById('catalog-list');
     if (!state.items.length) {
-      container.innerHTML = '<div class="empty-state">Hiện chưa có món nào để đặt.</div>';
+      container.innerHTML = '<div class="empty-state">No items are available to order right now.</div>';
       return;
     }
     var byCategory = {};
@@ -117,9 +117,9 @@
           '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) + '</div>' +
           '</div>' +
           '<div class="qty-control">' +
-          '<button class="qty-btn qty-minus" aria-label="Giảm">-</button>' +
+          '<button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>' +
           '<span class="qty-value">' + qty + '</span>' +
-          '<button class="qty-btn primary qty-plus" aria-label="Tăng">+</button>' +
+          '<button class="qty-btn primary qty-plus" aria-label="Increase quantity">+</button>' +
           '</div></div>';
       });
       html += '</div>';
@@ -186,11 +186,11 @@
       var selected = d.iso === state.selectedDate ? ' selected' : '';
       return '<div class="date-chip' + selected + '" data-iso="' + d.iso + '">' +
         escapeHtml(d.label) +
-        '<span class="chip-deadline">Chốt đơn: ' + escapeHtml(d.deadlineLabel) + '</span>' +
+        '<span class="chip-deadline">Cut-off: ' + escapeHtml(d.deadlineLabel) + '</span>' +
         '</div>';
     }).join('');
     document.getElementById('delivery-dates').innerHTML = datesHtml ||
-      '<span class="muted small">Không có ngày giao hợp lệ, vui lòng quay lại sau.</span>';
+      '<span class="muted small">No delivery dates are open right now. Please check back later.</span>';
     document.querySelectorAll('.date-chip').forEach(function (chip) {
       chip.addEventListener('click', function () {
         state.selectedDate = chip.getAttribute('data-iso');
@@ -216,29 +216,29 @@
     var deliveryAddress = document.getElementById('delivery-address').value.trim();
     var lines = cartLines();
 
-    if (!lines.length) { showOrderError('Giỏ hàng đang trống.'); return; }
-    if (!state.selectedDate) { showOrderError('Vui lòng chọn ngày giao hàng.'); return; }
-    if (!ordererName) { showOrderError('Vui lòng nhập tên người đặt.'); return; }
-    if (!deliveryAddress) { showOrderError('Vui lòng nhập địa chỉ giao hàng.'); return; }
+    if (!lines.length) { showOrderError('Your cart is empty.'); return; }
+    if (!state.selectedDate) { showOrderError('Please choose a delivery date.'); return; }
+    if (!ordererName) { showOrderError('Please enter your name.'); return; }
+    if (!deliveryAddress) { showOrderError('Please enter a delivery address.'); return; }
 
     var btn = document.getElementById('submit-order-btn');
     btn.disabled = true;
-    btn.textContent = 'Đang gửi...';
+    btn.textContent = 'Sending...';
 
     google.script.run
       .withSuccessHandler(function (result) {
         btn.disabled = false;
-        btn.textContent = 'Gửi đơn hàng';
-        if (!result.ok) { showOrderError(result.message || 'Có lỗi xảy ra.'); return; }
+        btn.textContent = 'Place order';
+        if (!result.ok) { showOrderError(result.message || 'Something went wrong.'); return; }
         state.cart = {};
         closeCheckout();
         renderCatalog();
         renderCartBar();
-        toast('Đã gửi đơn hàng #' + result.orderId + ' thành công!');
+        toast('Order ' + result.orderId + ' sent to the central kitchen.');
       })
       .withFailureHandler(function (err) {
         btn.disabled = false;
-        btn.textContent = 'Gửi đơn hàng';
+        btn.textContent = 'Place order';
         showOrderError(err.message || String(err));
       })
       .submitOrder(state.idToken, {
@@ -256,7 +256,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // Navigation: catalog vs history
+  // Navigation: catalogue vs history
   // ---------------------------------------------------------------------
 
   document.getElementById('nav-catalog').addEventListener('click', function () { switchView('catalog'); });
@@ -273,7 +273,7 @@
 
   function loadHistory() {
     var container = document.getElementById('history-list');
-    container.innerHTML = '<div class="empty-state">Đang tải...</div>';
+    container.innerHTML = '<div class="empty-state">Loading...</div>';
     google.script.run
       .withSuccessHandler(renderHistory)
       .withFailureHandler(function (err) { container.innerHTML = '<div class="empty-state">' + escapeHtml(err.message || String(err)) + '</div>'; })
@@ -283,16 +283,16 @@
   function renderHistory(orders) {
     var container = document.getElementById('history-list');
     if (!orders.length) {
-      container.innerHTML = '<div class="empty-state">Chưa có đơn hàng nào.</div>';
+      container.innerHTML = '<div class="empty-state">You have not placed any orders yet.</div>';
       return;
     }
     container.innerHTML = orders.map(function (o) {
       var itemsSummary = o.items.map(function (i) { return i.name + ' x' + i.qty; }).join(', ');
       return (
         '<div class="order-card">' +
-        '<div class="order-top"><span>#' + escapeHtml(o.orderId) + '</span><span>' + formatCurrency(o.total) + '</span></div>' +
+        '<div class="order-top"><span>' + escapeHtml(o.orderId) + '</span><span>' + formatCurrency(o.total) + '</span></div>' +
         '<div class="order-items">' + escapeHtml(itemsSummary) + '</div>' +
-        '<div class="order-items">Giao: ' + escapeHtml(o.deliveryDate) + ' &middot; Đặt lúc: ' + escapeHtml(o.timestamp) + '</div>' +
+        '<div class="order-items">Delivery: ' + escapeHtml(o.deliveryDate) + ' &middot; Placed: ' + escapeHtml(o.timestamp) + '</div>' +
         '<span class="status-badge">' + escapeHtml(o.status) + '</span>' +
         '</div>'
       );
@@ -303,8 +303,13 @@
   // Helpers
   // ---------------------------------------------------------------------
 
+  /** Australian dollars, e.g. 1234.5 -> "$1,234.50". Matches Code.gs. */
   function formatCurrency(n) {
-    return Number(n || 0).toLocaleString('vi-VN') + 'đ';
+    var num = Number(n);
+    if (isNaN(num)) num = 0;
+    var parts = Math.abs(num).toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (num < 0 ? '-$' : '$') + parts.join('.');
   }
 
   function escapeHtml(s) {

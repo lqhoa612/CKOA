@@ -60,8 +60,8 @@ function getConfig_() {
     appTitle: config.AppTitle || 'Central Kitchen Ordering',
     googleClientId: config.GoogleClientId || '',
     centralKitchenEmail: config.CentralKitchenEmail || '',
-    // Hạn chốt đơn: OrderCutoffHour giờ, của OrderCutoffDaysBefore ngày trước ngày giao.
-    // Mặc định: 16:00 ngày hôm trước.
+    // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
+    // of the delivery date. Default: 4pm the day before.
     orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
     orderCutoffDaysBefore: numberOr_(config.OrderCutoffDaysBefore, 1)
   };
@@ -73,7 +73,7 @@ function numberOr_(value, fallback) {
   return isNaN(n) ? fallback : n;
 }
 
-/** Múi giờ lấy từ appsscript.json — sửa ở đó là đổi toàn app. */
+/** Time zone comes from appsscript.json - change it there to change the app. */
 function getTimeZone_() {
   return Session.getScriptTimeZone();
 }
@@ -111,21 +111,21 @@ function sheetRowsAsObjects_(sheet) {
 // ---------------------------------------------------------------------------
 
 function verifyIdToken_(idToken) {
-  if (!idToken) throw new Error('Thiếu thông tin đăng nhập.');
+  if (!idToken) throw new Error('Missing sign-in details.');
   var config = getConfig_();
   var response = UrlFetchApp.fetch(
     'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken),
     { muteHttpExceptions: true }
   );
   if (response.getResponseCode() !== 200) {
-    throw new Error('Đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.');
+    throw new Error('Your sign-in is invalid or has expired. Please sign in again.');
   }
   var payload = JSON.parse(response.getContentText());
   if (config.googleClientId && payload.aud !== config.googleClientId) {
-    throw new Error('Đăng nhập không hợp lệ (sai ứng dụng).');
+    throw new Error('This sign-in was issued for a different app.');
   }
   if (!payload.email || payload.email_verified === 'false' || payload.email_verified === false) {
-    throw new Error('Tài khoản Google chưa xác thực email.');
+    throw new Error('This Google account does not have a verified email address.');
   }
   return { email: String(payload.email).toLowerCase(), name: payload.name || payload.email };
 }
@@ -150,7 +150,7 @@ function authenticateRestaurant_(idToken) {
   var restaurant = findRestaurantByEmail_(identity.email);
   if (!restaurant) {
     throw new Error(
-      'Tài khoản ' + identity.email + ' chưa được đăng ký. Vui lòng liên hệ quản trị viên để được thêm vào danh sách nhà hàng.'
+      identity.email + ' is not registered. Please ask your administrator to add this account to the restaurant list.'
     );
   }
   return restaurant;
@@ -169,14 +169,13 @@ function authenticate(idToken) {
 }
 
 // ---------------------------------------------------------------------------
-// Catalog + delivery dates
+// Catalogue + delivery dates
 // ---------------------------------------------------------------------------
 
 function getActiveItems_() {
   var sheet = getSheet_(SHEET_NAMES.ITEMS);
   var rows = sheetRowsAsObjects_(sheet);
   var items = [];
-  var needsIdWrite = false;
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     if (!r.Name) continue;
@@ -184,11 +183,10 @@ function getActiveItems_() {
     if (!r.ID) {
       r.ID = 'IT' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMddHHmmss') + i;
       sheet.getRange(r._row, 1).setValue(r.ID);
-      needsIdWrite = true;
     }
     items.push({
       id: String(r.ID),
-      category: r.Category || 'Khác',
+      category: r.Category || 'Other',
       name: r.Name,
       unit: r.Unit || '',
       price: Number(r.Price) || 0
@@ -198,9 +196,9 @@ function getActiveItems_() {
 }
 
 /**
- * Ngày giao hợp lệ = thứ 4 / thứ 6 sắp tới mà hạn chốt đơn vẫn chưa qua.
- * Hạn chốt đơn của một ngày giao = OrderCutoffHour giờ, của OrderCutoffDaysBefore
- * ngày trước đó (mặc định 16:00 ngày hôm trước).
+ * A delivery date is available when it is an upcoming Wednesday/Friday whose
+ * cut-off has not passed. The cut-off for a delivery date is OrderCutoffHour
+ * o'clock, OrderCutoffDaysBefore days earlier (default: 4pm the day before).
  */
 function getUpcomingDeliveryDates_() {
   var config = getConfig_();
@@ -212,11 +210,11 @@ function getUpcomingDeliveryDates_() {
     var check = addDays_(now, d);
     if (DELIVERY_WEEKDAYS.indexOf(check.getDay()) === -1) continue;
     var deadline = cutoffDeadlineFor_(check, config);
-    if (now.getTime() >= deadline.getTime()) continue; // đã qua hạn chốt đơn
+    if (now.getTime() >= deadline.getTime()) continue; // cut-off has passed
     dates.push({
       iso: Utilities.formatDate(check, tz, 'yyyy-MM-dd'),
       label: Utilities.formatDate(check, tz, 'EEEE, dd/MM/yyyy'),
-      deadlineLabel: Utilities.formatDate(deadline, tz, 'HH:mm dd/MM')
+      deadlineLabel: Utilities.formatDate(deadline, tz, 'h:mma EEE dd/MM').replace('AM', 'am').replace('PM', 'pm')
     });
   }
   return dates;
@@ -232,9 +230,9 @@ function cutoffDeadlineFor_(deliveryDate, config) {
 }
 
 /**
- * Cộng ngày theo lịch (không phải theo mili-giây) để không lệch vào tuần
- * đổi giờ mùa hè — Hobart có DST nên ngày chuyển giờ dài 23h hoặc 25h.
- * Kết quả luôn là 00:00 giờ địa phương của ngày cần lấy.
+ * Add days by calendar, not by milliseconds, so the result does not drift
+ * across daylight saving changes - Hobart's changeover days are 23 or 25
+ * hours long. Always returns local midnight of the target day.
  */
 function addDays_(from, days) {
   return new Date(from.getFullYear(), from.getMonth(), from.getDate() + days, 0, 0, 0, 0);
@@ -260,35 +258,35 @@ function submitOrder(idToken, order) {
   var restaurant = authenticateRestaurant_(idToken);
 
   if (!order || !order.items || !order.items.length) {
-    throw new Error('Giỏ hàng đang trống.');
+    throw new Error('Your cart is empty.');
   }
   if (!order.ordererName || !String(order.ordererName).trim()) {
-    throw new Error('Vui lòng nhập tên người đặt.');
+    throw new Error('Please enter your name.');
   }
   if (!order.deliveryDate) {
-    throw new Error('Vui lòng chọn ngày giao hàng.');
+    throw new Error('Please choose a delivery date.');
   }
   var availableDates = getUpcomingDeliveryDates_();
   var selectedDate = availableDates.filter(function (d) { return d.iso === order.deliveryDate; })[0];
   if (!selectedDate) {
     var cutoffConfig = getConfig_();
     throw new Error(
-      'Ngày giao này đã quá hạn chốt đơn (' + cutoffConfig.orderCutoffHour + ':00, ' +
-      cutoffConfig.orderCutoffDaysBefore + ' ngày trước ngày giao) hoặc không hợp lệ. Vui lòng chọn ngày khác.'
+      'Ordering has closed for that delivery date (cut-off is ' + formatHour_(cutoffConfig.orderCutoffHour) +
+      ', ' + cutoffConfig.orderCutoffDaysBefore + ' day(s) before delivery). Please choose another date.'
     );
   }
   var address = (order.deliveryAddress && String(order.deliveryAddress).trim()) || restaurant.address;
   if (!address) {
-    throw new Error('Vui lòng nhập địa chỉ giao hàng.');
+    throw new Error('Please enter a delivery address.');
   }
 
-  var catalog = {};
-  getActiveItems_().forEach(function (it) { catalog[it.id] = it; });
+  var catalogue = {};
+  getActiveItems_().forEach(function (it) { catalogue[it.id] = it; });
 
   var lineItems = [];
   var total = 0;
   order.items.forEach(function (line) {
-    var product = catalog[line.id];
+    var product = catalogue[line.id];
     var qty = Number(line.qty) || 0;
     if (!product || qty <= 0) return;
     var lineTotal = product.price * qty;
@@ -303,7 +301,7 @@ function submitOrder(idToken, order) {
     });
   });
   if (!lineItems.length) {
-    throw new Error('Giỏ hàng không có món hợp lệ.');
+    throw new Error('Your cart has no valid items.');
   }
 
   var orderId = 'ORD' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMdd-HHmmss');
@@ -320,7 +318,7 @@ function submitOrder(idToken, order) {
     address,
     JSON.stringify(lineItems),
     total,
-    'Đã gửi'
+    'Sent'
   ]);
 
   sendOrderEmail_({
@@ -340,25 +338,25 @@ function submitOrder(idToken, order) {
 function sendOrderEmail_(data) {
   var config = getConfig_();
   if (!config.centralKitchenEmail) {
-    throw new Error('Chưa cấu hình email bếp trung tâm (CentralKitchenEmail) trong sheet Settings.');
+    throw new Error('The central kitchen email (CentralKitchenEmail) is not set in the Settings tab.');
   }
 
-  var subject = '[' + data.restaurant.name + '] Đơn đặt hàng bếp trung tâm - Giao ' + data.deliveryLabel;
+  var subject = '[' + data.restaurant.name + '] Central kitchen order - delivery ' + data.deliveryLabel;
 
   var textLines = [];
-  textLines.push('Nhà hàng: ' + data.restaurant.name);
-  textLines.push('Người đặt: ' + data.ordererName);
-  textLines.push('Ngày giao: ' + data.deliveryLabel);
-  textLines.push('Địa chỉ giao: ' + data.deliveryAddress);
+  textLines.push('Restaurant: ' + data.restaurant.name);
+  textLines.push('Ordered by: ' + data.ordererName);
+  textLines.push('Delivery date: ' + data.deliveryLabel);
+  textLines.push('Delivery address: ' + data.deliveryAddress);
   textLines.push('');
-  textLines.push('Danh sách món:');
+  textLines.push('Items:');
   data.lineItems.forEach(function (li) {
     textLines.push('- ' + li.name + ' x' + li.qty + ' ' + li.unit + ' = ' + formatCurrency_(li.lineTotal));
   });
   textLines.push('');
-  textLines.push('Tổng cộng: ' + formatCurrency_(data.total));
+  textLines.push('Total: ' + formatCurrency_(data.total));
   textLines.push('');
-  textLines.push('Mã đơn: ' + data.orderId);
+  textLines.push('Order ref: ' + data.orderId);
   textLines.push('--');
   textLines.push(data.ordererName);
   textLines.push(data.restaurant.name);
@@ -378,20 +376,20 @@ function sendOrderEmail_(data) {
 
   var htmlBody =
     '<div style="font-family:Arial,sans-serif;font-size:14px;color:#222;">' +
-    '<p><strong>Nhà hàng:</strong> ' + escapeHtml_(data.restaurant.name) + '<br>' +
-    '<strong>Người đặt:</strong> ' + escapeHtml_(data.ordererName) + '<br>' +
-    '<strong>Ngày giao:</strong> ' + escapeHtml_(data.deliveryLabel) + '<br>' +
-    '<strong>Địa chỉ giao:</strong> ' + escapeHtml_(data.deliveryAddress) + '</p>' +
+    '<p><strong>Restaurant:</strong> ' + escapeHtml_(data.restaurant.name) + '<br>' +
+    '<strong>Ordered by:</strong> ' + escapeHtml_(data.ordererName) + '<br>' +
+    '<strong>Delivery date:</strong> ' + escapeHtml_(data.deliveryLabel) + '<br>' +
+    '<strong>Delivery address:</strong> ' + escapeHtml_(data.deliveryAddress) + '</p>' +
     '<table style="border-collapse:collapse;width:100%;max-width:480px;">' +
     '<thead><tr>' +
-    '<th style="text-align:left;padding:4px 8px;border-bottom:2px solid #333;">Món</th>' +
-    '<th style="text-align:center;padding:4px 8px;border-bottom:2px solid #333;">SL</th>' +
-    '<th style="text-align:right;padding:4px 8px;border-bottom:2px solid #333;">Thành tiền</th>' +
+    '<th style="text-align:left;padding:4px 8px;border-bottom:2px solid #333;">Item</th>' +
+    '<th style="text-align:center;padding:4px 8px;border-bottom:2px solid #333;">Qty</th>' +
+    '<th style="text-align:right;padding:4px 8px;border-bottom:2px solid #333;">Amount</th>' +
     '</tr></thead><tbody>' + rowsHtml + '</tbody>' +
-    '<tfoot><tr><td colspan="2" style="padding:6px 8px;text-align:right;"><strong>Tổng cộng</strong></td>' +
+    '<tfoot><tr><td colspan="2" style="padding:6px 8px;text-align:right;"><strong>Total</strong></td>' +
     '<td style="padding:6px 8px;text-align:right;"><strong>' + formatCurrency_(data.total) + '</strong></td></tr></tfoot>' +
     '</table>' +
-    '<p style="margin-top:16px;color:#555;">Mã đơn: ' + escapeHtml_(data.orderId) + '</p>' +
+    '<p style="margin-top:16px;color:#555;">Order ref: ' + escapeHtml_(data.orderId) + '</p>' +
     '<p>--<br>' + escapeHtml_(data.ordererName) + '<br>' + escapeHtml_(data.restaurant.name) + '</p>' +
     '</div>';
 
@@ -402,8 +400,22 @@ function sendOrderEmail_(data) {
   });
 }
 
+/** Australian dollars, e.g. 1234.5 -> "$1,234.50". */
 function formatCurrency_(n) {
-  return Number(n || 0).toLocaleString('vi-VN') + 'đ';
+  var num = Number(n);
+  if (isNaN(num)) num = 0;
+  var parts = Math.abs(num).toFixed(2).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (num < 0 ? '-$' : '$') + parts.join('.');
+}
+
+/** 16 -> "4pm", 9 -> "9am", 0 -> "12am". */
+function formatHour_(hour) {
+  var h = Number(hour) || 0;
+  var suffix = h < 12 ? 'am' : 'pm';
+  var display = h % 12;
+  if (display === 0) display = 12;
+  return display + suffix;
 }
 
 function escapeHtml_(s) {

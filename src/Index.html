@@ -12,7 +12,7 @@
   <section id="login-screen" class="screen">
     <div class="login-card">
       <h1><?= appTitle ?></h1>
-      <p class="muted">Đăng nhập bằng tài khoản Google của nhà hàng để đặt hàng từ bếp trung tâm.</p>
+      <p class="muted">Sign in with your restaurant's Google account to order from the central kitchen.</p>
       <div id="g_id_signin_container"></div>
       <p id="login-error" class="error hidden"></p>
     </div>
@@ -26,13 +26,13 @@
         <div class="muted small" id="restaurant-email"></div>
       </div>
       <nav class="header-nav">
-        <button id="nav-catalog" class="nav-btn active">Đặt hàng</button>
-        <button id="nav-history" class="nav-btn">Đơn đã đặt</button>
-        <button id="logout-btn" class="nav-btn ghost">Đăng xuất</button>
+        <button id="nav-catalog" class="nav-btn active">Order</button>
+        <button id="nav-history" class="nav-btn">My orders</button>
+        <button id="logout-btn" class="nav-btn ghost">Sign out</button>
       </nav>
     </header>
 
-    <!-- Catalog view -->
+    <!-- Catalogue view -->
     <main id="catalog-view">
       <div id="catalog-list"></div>
     </main>
@@ -45,9 +45,9 @@
     <!-- Cart bar -->
     <div id="cart-bar" class="cart-bar hidden">
       <div class="cart-summary">
-        <span id="cart-count">0</span> món &middot; <span id="cart-total">0đ</span>
+        <span id="cart-count">0</span> items &middot; <span id="cart-total">$0.00</span>
       </div>
-      <button id="checkout-btn">Xem giỏ hàng</button>
+      <button id="checkout-btn">View cart</button>
     </div>
   </section>
 
@@ -55,24 +55,24 @@
   <div id="checkout-modal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Xác nhận đơn hàng</h2>
-        <button id="close-checkout" class="icon-btn">&times;</button>
+        <h2>Confirm your order</h2>
+        <button id="close-checkout" class="icon-btn" aria-label="Close">&times;</button>
       </div>
       <div id="checkout-items"></div>
-      <div class="checkout-total">Tổng cộng: <strong id="checkout-total">0đ</strong></div>
+      <div class="checkout-total">Total: <strong id="checkout-total">$0.00</strong></div>
 
-      <label class="field-label">Ngày giao hàng</label>
+      <label class="field-label">Delivery date</label>
       <div id="delivery-dates" class="delivery-dates"></div>
 
-      <label class="field-label" for="orderer-name">Tên người đặt</label>
-      <input type="text" id="orderer-name" placeholder="Nhập tên của bạn">
+      <label class="field-label" for="orderer-name">Your name</label>
+      <input type="text" id="orderer-name" placeholder="Who is placing this order?">
 
-      <label class="field-label" for="delivery-address">Địa chỉ giao hàng</label>
-      <textarea id="delivery-address" rows="2" placeholder="Địa chỉ nhận hàng"></textarea>
+      <label class="field-label" for="delivery-address">Delivery address</label>
+      <textarea id="delivery-address" rows="2" placeholder="Where should we deliver?"></textarea>
 
       <p id="order-error" class="error hidden"></p>
 
-      <button id="submit-order-btn" class="primary-btn">Gửi đơn hàng</button>
+      <button id="submit-order-btn" class="primary-btn">Place order</button>
     </div>
   </div>
 
