@@ -73,6 +73,11 @@ function numberOr_(value, fallback) {
   return isNaN(n) ? fallback : n;
 }
 
+/** Múi giờ lấy từ appsscript.json — sửa ở đó là đổi toàn app. */
+function getTimeZone_() {
+  return Session.getScriptTimeZone();
+}
+
 function getSheet_(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(name);
@@ -177,7 +182,7 @@ function getActiveItems_() {
     if (!r.Name) continue;
     if (String(r.Active).toUpperCase() === 'FALSE') continue;
     if (!r.ID) {
-      r.ID = 'IT' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyMMddHHmmss') + i;
+      r.ID = 'IT' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMddHHmmss') + i;
       sheet.getRange(r._row, 1).setValue(r.ID);
       needsIdWrite = true;
     }
@@ -199,14 +204,12 @@ function getActiveItems_() {
  */
 function getUpcomingDeliveryDates_() {
   var config = getConfig_();
-  var tz = 'Asia/Ho_Chi_Minh';
+  var tz = getTimeZone_();
   var now = new Date();
   var dates = [];
-  var cursor = new Date(now);
-  cursor.setHours(0, 0, 0, 0);
 
   for (var d = 0; dates.length < UPCOMING_DELIVERY_COUNT && d < 60; d++) {
-    var check = new Date(cursor.getTime() + d * 86400000);
+    var check = addDays_(now, d);
     if (DELIVERY_WEEKDAYS.indexOf(check.getDay()) === -1) continue;
     var deadline = cutoffDeadlineFor_(check, config);
     if (now.getTime() >= deadline.getTime()) continue; // đã qua hạn chốt đơn
@@ -220,9 +223,21 @@ function getUpcomingDeliveryDates_() {
 }
 
 function cutoffDeadlineFor_(deliveryDate, config) {
-  var deadline = new Date(deliveryDate.getTime() - config.orderCutoffDaysBefore * 86400000);
-  deadline.setHours(config.orderCutoffHour, 0, 0, 0);
-  return deadline;
+  return new Date(
+    deliveryDate.getFullYear(),
+    deliveryDate.getMonth(),
+    deliveryDate.getDate() - config.orderCutoffDaysBefore,
+    config.orderCutoffHour, 0, 0, 0
+  );
+}
+
+/**
+ * Cộng ngày theo lịch (không phải theo mili-giây) để không lệch vào tuần
+ * đổi giờ mùa hè — Hobart có DST nên ngày chuyển giờ dài 23h hoặc 25h.
+ * Kết quả luôn là 00:00 giờ địa phương của ngày cần lấy.
+ */
+function addDays_(from, days) {
+  return new Date(from.getFullYear(), from.getMonth(), from.getDate() + days, 0, 0, 0, 0);
 }
 
 /**
@@ -291,7 +306,7 @@ function submitOrder(idToken, order) {
     throw new Error('Giỏ hàng không có món hợp lệ.');
   }
 
-  var orderId = 'ORD' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyMMdd-HHmmss');
+  var orderId = 'ORD' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMdd-HHmmss');
   var deliveryLabel = selectedDate.label;
 
   var ordersSheet = getSheet_(SHEET_NAMES.ORDERS);
@@ -413,7 +428,7 @@ function getMyOrders(idToken) {
     try { items = JSON.parse(r.ItemsJSON || '[]'); } catch (e) { items = []; }
     return {
       orderId: r.OrderID,
-      timestamp: Utilities.formatDate(new Date(r.Timestamp), 'Asia/Ho_Chi_Minh', 'dd/MM/yyyy HH:mm'),
+      timestamp: Utilities.formatDate(new Date(r.Timestamp), getTimeZone_(), 'dd/MM/yyyy HH:mm'),
       deliveryDate: r.DeliveryDate,
       items: items,
       total: r.Total,
