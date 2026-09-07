@@ -20,14 +20,28 @@
       showLoginError('This app has no Google Client ID configured. Please contact your administrator.');
       return;
     }
+    var container = document.getElementById('g_id_signin_container');
     google.accounts.id.initialize({
       client_id: CKOA_CONFIG.googleClientId,
       callback: handleCredentialResponse
     });
     google.accounts.id.renderButton(
-      document.getElementById('g_id_signin_container'),
+      container,
       { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'en-AU' }
     );
+
+    // Google refuses to draw the button when this page's origin is not on the
+    // client ID's authorised list. Surface the exact origin to paste in, since
+    // Apps Script serves this page from a googleusercontent.com subdomain
+    // rather than from script.google.com.
+    setTimeout(function () {
+      if (container.childElementCount === 0) {
+        showLoginError(
+          'The Google sign-in button could not load. Ask your administrator to add this exact ' +
+          'origin to the OAuth client ID under "Authorised JavaScript origins": ' + window.location.origin
+        );
+      }
+    }, 5000);
   };
 
   function handleCredentialResponse(response) {
