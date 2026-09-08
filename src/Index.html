@@ -3,18 +3,16 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <?!= include('Stylesheet'); ?>
 </head>
 <body>
 
-  <!-- Login screen -->
-  <section id="login-screen" class="screen">
+  <!-- Startup: shown while the first request is in flight, or if it fails -->
+  <section id="startup-screen" class="screen">
     <div class="login-card">
       <h1><?= appTitle ?></h1>
-      <p class="muted">Sign in with your restaurant's Google account to order from the central kitchen.</p>
-      <div id="g_id_signin_container"></div>
-      <p id="login-error" class="error hidden"></p>
+      <p class="muted" id="startup-message">Loading your order page&hellip;</p>
+      <p id="startup-error" class="error hidden"></p>
     </div>
   </section>
 
@@ -28,7 +26,6 @@
       <nav class="header-nav">
         <button id="nav-catalog" class="nav-btn active">Order</button>
         <button id="nav-history" class="nav-btn">My orders</button>
-        <button id="logout-btn" class="nav-btn ghost">Sign out</button>
       </nav>
     </header>
 
@@ -79,11 +76,6 @@
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
-  <script>
-    var CKOA_CONFIG = {
-      googleClientId: <?!= JSON.stringify(googleClientId) ?>
-    };
-  </script>
   <?!= include('JavaScript'); ?>
 </body>
 </html>

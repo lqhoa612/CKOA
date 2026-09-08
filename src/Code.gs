@@ -9,8 +9,23 @@
  *               | OrdererName | DeliveryDate | DeliveryAddress | ItemsJSON |
  *               | Total | Status |
  *
- * See ../SETUP.md for how to create the sheet, deploy this as a web app,
- * and configure the Google Sign-In client ID.
+ * IDENTITY MODEL
+ * This script is published as TWO web app deployments of the same code:
+ *
+ *   App  - "Execute as: User accessing the web app", access "Anyone with a
+ *          Google Account". Google signs the person in before the page loads,
+ *          so Session.getActiveUser() tells us who they are. Restaurant staff
+ *          use this URL. It holds no access to the spreadsheet.
+ *
+ *   API  - "Execute as: Me", access "Anyone". Receives requests from App over
+ *          UrlFetchApp, checks the caller's email against the Restaurants tab,
+ *          and does all spreadsheet and Gmail work under the admin's account.
+ *
+ * The two deployments recognise each other with a shared secret kept in Script
+ * Properties (API_URL and API_SECRET), so restaurants never need access to the
+ * spreadsheet and orders are always emailed from the admin's Gmail.
+ *
+ * See ../SETUP.md for the full deployment walkthrough.
  */
 
 var SHEET_NAMES = {
@@ -23,24 +38,138 @@ var SHEET_NAMES = {
 var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
 var UPCOMING_DELIVERY_COUNT = 4;
 
-// ---------------------------------------------------------------------------
-// Web app entry point
-// ---------------------------------------------------------------------------
+var PROP_API_URL = 'API_URL';
+var PROP_API_SECRET = 'API_SECRET';
+
+// ===========================================================================
+// APP SIDE - runs as the restaurant user, has no spreadsheet access
+// ===========================================================================
 
 function doGet() {
-  var config = getConfig_();
+  // The API deployment runs as the admin, so nobody is "signed in" there and
+  // this guard stops that URL from ever serving the ordering screen.
+  if (!getActiveUserEmail_()) {
+    return HtmlService.createHtmlOutput(
+      '<p style="font-family:Arial,sans-serif;padding:24px;">This URL is the CKOA API endpoint, not the app. ' +
+      'Please use the app link your administrator gave you.</p>'
+    );
+  }
   var template = HtmlService.createTemplateFromFile('Index');
-  template.appTitle = config.appTitle || 'Central Kitchen Ordering';
-  template.googleClientId = config.googleClientId || '';
+  template.appTitle = 'Central Kitchen Ordering';
   return template
     .evaluate()
-    .setTitle(config.appTitle || 'Central Kitchen Ordering')
+    .setTitle('Central Kitchen Ordering')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * The Google account viewing the page. Deliberately does NOT fall back to
+ * getEffectiveUser(): on the API deployment that would return the admin and
+ * let an anonymous visitor act as them.
+ */
+function getActiveUserEmail_() {
+  try {
+    return String(Session.getActiveUser().getEmail() || '').toLowerCase();
+  } catch (err) {
+    return '';
+  }
+}
+
+function callApi_(action, data) {
+  var props = PropertiesService.getScriptProperties();
+  var url = props.getProperty(PROP_API_URL);
+  var secret = props.getProperty(PROP_API_SECRET);
+  if (!url || !secret) {
+    throw new Error('This app is not finished being set up (API_URL / API_SECRET are missing). Please contact your administrator.');
+  }
+
+  var email = getActiveUserEmail_();
+  if (!email) {
+    throw new Error('We could not tell which Google account you are signed in with. Please reload the page and try again.');
+  }
+
+  var response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ secret: secret, email: email, action: action, data: data || {} }),
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+
+  var result;
+  try {
+    result = JSON.parse(response.getContentText());
+  } catch (err) {
+    throw new Error('The server sent back an unexpected response. Please contact your administrator.');
+  }
+  if (!result.ok) throw new Error(result.message || 'Something went wrong.');
+  return result.data;
+}
+
+// Client-callable wrappers used by google.script.run.
+function getOrderPageData() { return callApi_('getOrderPageData'); }
+function submitOrder(order) { return callApi_('submitOrder', order); }
+function getMyOrders() { return callApi_('getMyOrders'); }
+
+// ===========================================================================
+// API SIDE - runs as the admin, owns the spreadsheet and sends the email
+// ===========================================================================
+
+function doPost(e) {
+  try {
+    var body = JSON.parse(e.postData.contents);
+    var secret = PropertiesService.getScriptProperties().getProperty(PROP_API_SECRET);
+    if (!secret || body.secret !== secret) {
+      return jsonOutput_({ ok: false, message: 'Unauthorised request.' });
+    }
+
+    var email = String(body.email || '').trim().toLowerCase();
+    var restaurant = findRestaurantByEmail_(email);
+    if (!restaurant) {
+      return jsonOutput_({
+        ok: false,
+        message: email + ' is not registered. Please ask your administrator to add this account to the restaurant list.'
+      });
+    }
+
+    var data;
+    switch (body.action) {
+      case 'getOrderPageData': data = apiOrderPageData_(restaurant); break;
+      case 'submitOrder': data = apiSubmitOrder_(restaurant, body.data || {}); break;
+      case 'getMyOrders': data = apiMyOrders_(restaurant); break;
+      default: return jsonOutput_({ ok: false, message: 'Unknown action.' });
+    }
+    return jsonOutput_({ ok: true, data: data });
+  } catch (err) {
+    return jsonOutput_({ ok: false, message: err.message || String(err) });
+  }
+}
+
+function jsonOutput_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Run this once from the editor to create the shared secret, then copy the
+ * value it logs into the API_SECRET script property of the same project.
+ */
+function generateApiSecret() {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty(PROP_API_SECRET);
+  if (!secret) {
+    secret = Utilities.getUuid() + Utilities.getUuid();
+    props.setProperty(PROP_API_SECRET, secret);
+    Logger.log('Created API_SECRET.');
+  } else {
+    Logger.log('API_SECRET already exists.');
+  }
+  Logger.log('API_URL is currently: ' + (props.getProperty(PROP_API_URL) || '(not set yet)'));
+  return secret;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,7 +187,6 @@ function getConfig_() {
   }
   return {
     appTitle: config.AppTitle || 'Central Kitchen Ordering',
-    googleClientId: config.GoogleClientId || '',
     centralKitchenEmail: config.CentralKitchenEmail || '',
     // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
     // of the delivery date. Default: 4pm the day before.
@@ -104,33 +232,9 @@ function sheetRowsAsObjects_(sheet) {
   return rows;
 }
 
-// ---------------------------------------------------------------------------
-// Auth: verify a Google Identity Services ID token, then match it against
-// the Restaurants tab. This works for any Google account (personal or
-// Workspace) since it does not rely on Apps Script's own session auth.
-// ---------------------------------------------------------------------------
-
-function verifyIdToken_(idToken) {
-  if (!idToken) throw new Error('Missing sign-in details.');
-  var config = getConfig_();
-  var response = UrlFetchApp.fetch(
-    'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken),
-    { muteHttpExceptions: true }
-  );
-  if (response.getResponseCode() !== 200) {
-    throw new Error('Your sign-in is invalid or has expired. Please sign in again.');
-  }
-  var payload = JSON.parse(response.getContentText());
-  if (config.googleClientId && payload.aud !== config.googleClientId) {
-    throw new Error('This sign-in was issued for a different app.');
-  }
-  if (!payload.email || payload.email_verified === 'false' || payload.email_verified === false) {
-    throw new Error('This Google account does not have a verified email address.');
-  }
-  return { email: String(payload.email).toLowerCase(), name: payload.name || payload.email };
-}
-
+/** The Restaurants tab is the allow-list: no row, no access. */
 function findRestaurantByEmail_(email) {
+  if (!email) return null;
   var rows = sheetRowsAsObjects_(getSheet_(SHEET_NAMES.RESTAURANTS));
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
@@ -143,29 +247,6 @@ function findRestaurantByEmail_(email) {
     }
   }
   return null;
-}
-
-function authenticateRestaurant_(idToken) {
-  var identity = verifyIdToken_(idToken);
-  var restaurant = findRestaurantByEmail_(identity.email);
-  if (!restaurant) {
-    throw new Error(
-      identity.email + ' is not registered. Please ask your administrator to add this account to the restaurant list.'
-    );
-  }
-  return restaurant;
-}
-
-/**
- * Client-callable: verify login and return the restaurant profile.
- */
-function authenticate(idToken) {
-  try {
-    var restaurant = authenticateRestaurant_(idToken);
-    return { ok: true, restaurant: restaurant };
-  } catch (err) {
-    return { ok: false, message: err.message };
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -238,12 +319,9 @@ function addDays_(from, days) {
   return new Date(from.getFullYear(), from.getMonth(), from.getDate() + days, 0, 0, 0, 0);
 }
 
-/**
- * Client-callable: single call that returns everything the order page needs.
- */
-function getOrderPageData(idToken) {
-  var restaurant = authenticateRestaurant_(idToken);
+function apiOrderPageData_(restaurant) {
   return {
+    appTitle: getConfig_().appTitle,
     restaurant: restaurant,
     items: getActiveItems_(),
     deliveryDates: getUpcomingDeliveryDates_()
@@ -254,9 +332,7 @@ function getOrderPageData(idToken) {
 // Order submission
 // ---------------------------------------------------------------------------
 
-function submitOrder(idToken, order) {
-  var restaurant = authenticateRestaurant_(idToken);
-
+function apiSubmitOrder_(restaurant, order) {
   if (!order || !order.items || !order.items.length) {
     throw new Error('Your cart is empty.');
   }
@@ -305,32 +381,33 @@ function submitOrder(idToken, order) {
   }
 
   var orderId = 'ORD' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMdd-HHmmss');
-  var deliveryLabel = selectedDate.label;
+  var ordererName = String(order.ordererName).trim();
 
-  var ordersSheet = getSheet_(SHEET_NAMES.ORDERS);
-  ordersSheet.appendRow([
+  // Send first: if Gmail rejects the message there is no order, so the sheet
+  // never ends up holding a row the kitchen has not actually been told about.
+  sendOrderEmail_({
+    orderId: orderId,
+    restaurant: restaurant,
+    ordererName: ordererName,
+    deliveryDate: order.deliveryDate,
+    deliveryLabel: selectedDate.label,
+    deliveryAddress: address,
+    lineItems: lineItems,
+    total: total
+  });
+
+  getSheet_(SHEET_NAMES.ORDERS).appendRow([
     orderId,
     new Date(),
     restaurant.email,
     restaurant.name,
-    String(order.ordererName).trim(),
+    ordererName,
     order.deliveryDate,
     address,
     JSON.stringify(lineItems),
     total,
     'Sent'
   ]);
-
-  sendOrderEmail_({
-    orderId: orderId,
-    restaurant: restaurant,
-    ordererName: String(order.ordererName).trim(),
-    deliveryDate: order.deliveryDate,
-    deliveryLabel: deliveryLabel || order.deliveryDate,
-    deliveryAddress: address,
-    lineItems: lineItems,
-    total: total
-  });
 
   return { ok: true, orderId: orderId, total: total };
 }
@@ -425,11 +502,10 @@ function escapeHtml_(s) {
 }
 
 // ---------------------------------------------------------------------------
-// Order history for the logged-in restaurant
+// Order history for the signed-in restaurant
 // ---------------------------------------------------------------------------
 
-function getMyOrders(idToken) {
-  var restaurant = authenticateRestaurant_(idToken);
+function apiMyOrders_(restaurant) {
   var rows = sheetRowsAsObjects_(getSheet_(SHEET_NAMES.ORDERS));
   var mine = rows.filter(function (r) {
     return String(r.RestaurantEmail || '').toLowerCase() === restaurant.email;

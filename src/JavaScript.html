@@ -3,7 +3,6 @@
   'use strict';
 
   var state = {
-    idToken: null,
     restaurant: null,
     items: [],
     deliveryDates: [],
@@ -12,96 +11,40 @@
   };
 
   // ---------------------------------------------------------------------
-  // Login
+  // Startup: Google has already signed the user in before this page loads,
+  // so the first call both identifies them and loads their catalogue.
   // ---------------------------------------------------------------------
 
   window.onload = function () {
-    if (!CKOA_CONFIG.googleClientId) {
-      showLoginError('This app has no Google Client ID configured. Please contact your administrator.');
-      return;
-    }
-    var container = document.getElementById('g_id_signin_container');
-    google.accounts.id.initialize({
-      client_id: CKOA_CONFIG.googleClientId,
-      callback: handleCredentialResponse
-    });
-    google.accounts.id.renderButton(
-      container,
-      { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'en-AU' }
-    );
-
-    // Google refuses to draw the button when this page's origin is not on the
-    // client ID's authorised list. Surface the exact origin to paste in, since
-    // Apps Script serves this page from a googleusercontent.com subdomain
-    // rather than from script.google.com.
-    setTimeout(function () {
-      if (container.childElementCount === 0) {
-        showLoginError(
-          'The Google sign-in button could not load. Ask your administrator to add this exact ' +
-          'origin to the OAuth client ID under "Authorised JavaScript origins": ' + window.location.origin
-        );
-      }
-    }, 5000);
+    google.script.run
+      .withSuccessHandler(onLoaded)
+      .withFailureHandler(function (err) { showStartupError(err.message || String(err)); })
+      .getOrderPageData();
   };
 
-  function handleCredentialResponse(response) {
-    hideLoginError();
-    state.idToken = response.credential;
-    google.script.run
-      .withSuccessHandler(onAuthenticated)
-      .withFailureHandler(function (err) { showLoginError(err.message || String(err)); })
-      .authenticate(state.idToken);
-  }
+  function onLoaded(data) {
+    state.restaurant = data.restaurant;
+    state.items = data.items;
+    state.deliveryDates = data.deliveryDates;
+    if (state.deliveryDates.length) state.selectedDate = state.deliveryDates[0].iso;
 
-  function onAuthenticated(result) {
-    if (!result.ok) {
-      showLoginError(result.message);
-      state.idToken = null;
-      return;
-    }
-    state.restaurant = result.restaurant;
-    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('startup-screen').classList.add('hidden');
     document.getElementById('app-screen').classList.remove('hidden');
     document.getElementById('restaurant-name').textContent = state.restaurant.name;
     document.getElementById('restaurant-email').textContent = state.restaurant.email;
-    loadOrderPageData();
+    renderCatalog();
   }
 
-  function showLoginError(msg) {
-    var el = document.getElementById('login-error');
+  function showStartupError(msg) {
+    document.getElementById('startup-message').classList.add('hidden');
+    var el = document.getElementById('startup-error');
     el.textContent = msg;
     el.classList.remove('hidden');
   }
-  function hideLoginError() {
-    document.getElementById('login-error').classList.add('hidden');
-  }
-
-  document.getElementById('logout-btn').addEventListener('click', function () {
-    state.idToken = null;
-    state.restaurant = null;
-    state.cart = {};
-    document.getElementById('app-screen').classList.add('hidden');
-    document.getElementById('login-screen').classList.remove('hidden');
-    if (window.google && google.accounts && google.accounts.id) {
-      google.accounts.id.disableAutoSelect();
-    }
-  });
 
   // ---------------------------------------------------------------------
-  // Load catalogue + delivery dates
+  // Catalogue
   // ---------------------------------------------------------------------
-
-  function loadOrderPageData() {
-    google.script.run
-      .withSuccessHandler(function (data) {
-        state.items = data.items;
-        state.deliveryDates = data.deliveryDates;
-        if (state.deliveryDates.length) state.selectedDate = state.deliveryDates[0].iso;
-        renderCatalog();
-      })
-      .withFailureHandler(function (err) { toast(err.message || String(err)); })
-      .getOrderPageData(state.idToken);
-  }
 
   function renderCatalog() {
     var container = document.getElementById('catalog-list');
@@ -223,8 +166,7 @@
   }
 
   document.getElementById('submit-order-btn').addEventListener('click', function () {
-    var errorEl = document.getElementById('order-error');
-    errorEl.classList.add('hidden');
+    document.getElementById('order-error').classList.add('hidden');
 
     var ordererName = document.getElementById('orderer-name').value.trim();
     var deliveryAddress = document.getElementById('delivery-address').value.trim();
@@ -255,7 +197,7 @@
         btn.textContent = 'Place order';
         showOrderError(err.message || String(err));
       })
-      .submitOrder(state.idToken, {
+      .submitOrder({
         items: lines.map(function (l) { return { id: l.id, qty: l.qty }; }),
         deliveryDate: state.selectedDate,
         ordererName: ordererName,
@@ -291,7 +233,7 @@
     google.script.run
       .withSuccessHandler(renderHistory)
       .withFailureHandler(function (err) { container.innerHTML = '<div class="empty-state">' + escapeHtml(err.message || String(err)) + '</div>'; })
-      .getMyOrders(state.idToken);
+      .getMyOrders();
   }
 
   function renderHistory(orders) {
