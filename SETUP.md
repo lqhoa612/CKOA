@@ -127,6 +127,15 @@ App gọi sang API bằng `UrlFetchApp`, kèm email người dùng và một **m
 5. **Deploy** → copy URL
 6. Đây mới là URL gửi cho các nhà hàng.
 
+> **Nếu mở URL App mà gặp trang "This URL is the CKOA API endpoint"**: trang đó hiển thị luôn hai giá trị *Active user* và *Effective user* mà app nhìn thấy.
+>
+> - Cả hai đều trống → deployment sai cấu hình (kiểm tra lại Execute as / Who has access / version).
+> - Chỉ *Active user* trống, *Effective user* có email → đây là hành vi đã biết của Apps Script với một số tài khoản Gmail cá nhân. Thêm `?app=1` vào cuối URL App và dùng link đó: `https://script.google.com/macros/s/XXXX/exec?app=1`
+>
+> Chỉ khi thiếu đuôi `?app=1` mà Google không cung cấp danh tính thì app mới từ chối, nên nếu link thường đã chạy thì không cần thêm gì.
+>
+> **Đừng chia sẻ URL của deployment API.** Khi có đuôi `?app=1`, URL đó cũng hiện được giao diện đặt hàng nhưng chạy dưới danh nghĩa admin.
+
 > Lần đầu mỗi nhà hàng mở link App, Google sẽ hỏi họ cấp quyền cho script (để app biết email của họ và gọi được sang API). Họ cũng gặp màn hình *"Google hasn't verified this app"* → **Advanced → Go to … (unsafe)**. Chỉ một lần cho mỗi tài khoản.
 
 ### 4.4 Khi sửa code về sau
