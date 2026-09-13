@@ -227,6 +227,17 @@ function getConfig_() {
   };
 }
 
+/**
+ * Prices are typed by hand in the sheet, so tolerate "$8.50", "8,50" and
+ * stray spaces instead of silently showing $0.00.
+ */
+function parseAmount_(value) {
+  if (typeof value === 'number') return isNaN(value) ? 0 : value;
+  var cleaned = String(value == null ? '' : value).replace(/[^0-9.\-]/g, '');
+  var n = Number(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
 function numberOr_(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
   var n = Number(value);
@@ -302,7 +313,7 @@ function getActiveItems_() {
       category: r.Category || 'Other',
       name: r.Name,
       unit: r.Unit || '',
-      price: Number(r.Price) || 0
+      price: parseAmount_(r.Price)
     });
   }
   return items;
