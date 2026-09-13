@@ -50,8 +50,13 @@ function doGet() {
   // this guard stops that URL from ever serving the ordering screen.
   if (!getActiveUserEmail_()) {
     return HtmlService.createHtmlOutput(
-      '<p style="font-family:Arial,sans-serif;padding:24px;">This URL is the CKOA API endpoint, not the app. ' +
-      'Please use the app link your administrator gave you.</p>'
+      '<div style="font-family:Arial,sans-serif;padding:24px;max-width:560px;line-height:1.55;">' +
+      '<p>This URL is the CKOA API endpoint, not the app. Please use the app link your administrator gave you.</p>' +
+      '<p style="color:#666;font-size:13px;margin-top:20px;"><strong>Administrators:</strong> if this was meant to be the app link, ' +
+      'open <em>Deploy &rarr; Manage deployments</em> and check that this deployment has ' +
+      '<em>Execute as: User accessing the web app</em>, <em>Who has access: Anyone with a Google Account</em> ' +
+      '(not &ldquo;Anyone&rdquo;), and is running a version that includes the current code.</p>' +
+      '</div>'
     );
   }
   var template = HtmlService.createTemplateFromFile('Index');
