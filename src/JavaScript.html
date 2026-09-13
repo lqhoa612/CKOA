@@ -156,6 +156,7 @@
       });
     });
 
+    document.getElementById('orderer-name').textContent = state.restaurant.ordererName || state.restaurant.email;
     document.getElementById('delivery-address').value = state.restaurant.address || '';
     document.getElementById('order-error').classList.add('hidden');
     document.getElementById('checkout-modal').classList.remove('hidden');
@@ -168,13 +169,11 @@
   document.getElementById('submit-order-btn').addEventListener('click', function () {
     document.getElementById('order-error').classList.add('hidden');
 
-    var ordererName = document.getElementById('orderer-name').value.trim();
     var deliveryAddress = document.getElementById('delivery-address').value.trim();
     var lines = cartLines();
 
     if (!lines.length) { showOrderError('Your cart is empty.'); return; }
     if (!state.selectedDate) { showOrderError('Please choose a delivery date.'); return; }
-    if (!ordererName) { showOrderError('Please enter your name.'); return; }
     if (!deliveryAddress) { showOrderError('Please enter a delivery address.'); return; }
 
     var btn = document.getElementById('submit-order-btn');
@@ -200,7 +199,6 @@
       .submitOrder({
         items: lines.map(function (l) { return { id: l.id, qty: l.qty }; }),
         deliveryDate: state.selectedDate,
-        ordererName: ordererName,
         deliveryAddress: deliveryAddress
       });
   });
