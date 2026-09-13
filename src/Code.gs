@@ -45,20 +45,21 @@ var PROP_API_SECRET = 'API_SECRET';
 // APP SIDE - runs as the restaurant user, has no spreadsheet access
 // ===========================================================================
 
-function doGet() {
-  // The API deployment runs as the admin, so nobody is "signed in" there and
-  // this guard stops that URL from ever serving the ordering screen.
-  if (!getActiveUserEmail_()) {
-    return HtmlService.createHtmlOutput(
-      '<div style="font-family:Arial,sans-serif;padding:24px;max-width:560px;line-height:1.55;">' +
-      '<p>This URL is the CKOA API endpoint, not the app. Please use the app link your administrator gave you.</p>' +
-      '<p style="color:#666;font-size:13px;margin-top:20px;"><strong>Administrators:</strong> if this was meant to be the app link, ' +
-      'open <em>Deploy &rarr; Manage deployments</em> and check that this deployment has ' +
-      '<em>Execute as: User accessing the web app</em>, <em>Who has access: Anyone with a Google Account</em> ' +
-      '(not &ldquo;Anyone&rdquo;), and is running a version that includes the current code.</p>' +
-      '</div>'
-    );
+function doGet(e) {
+  // Session.getActiveUser() is the reliable signal that a real person is
+  // signed in, but it comes back blank for some consumer Gmail accounts even
+  // on an "execute as user accessing" deployment. When that happens the app
+  // link can carry ?app=1 to fall back to the effective user, which on this
+  // deployment is still the visitor. The API deployment always runs as the
+  // admin, so without that marker it refuses to serve the ordering screen.
+  var active = readEmail_(function () { return Session.getActiveUser().getEmail(); });
+  var effective = readEmail_(function () { return Session.getEffectiveUser().getEmail(); });
+  var appMarker = !!(e && e.parameter && e.parameter.app === '1');
+
+  if (!active && !(appMarker && effective)) {
+    return HtmlService.createHtmlOutput(notTheAppHtml_(active, effective));
   }
+
   var template = HtmlService.createTemplateFromFile('Index');
   template.appTitle = 'Central Kitchen Ordering';
   return template
@@ -72,17 +73,37 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-/**
- * The Google account viewing the page. Deliberately does NOT fall back to
- * getEffectiveUser(): on the API deployment that would return the admin and
- * let an anonymous visitor act as them.
- */
-function getActiveUserEmail_() {
+function readEmail_(getter) {
   try {
-    return String(Session.getActiveUser().getEmail() || '').toLowerCase();
+    return String(getter() || '').trim().toLowerCase();
   } catch (err) {
     return '';
   }
+}
+
+/**
+ * Who is using the app. On the App deployment both of these resolve to the
+ * visitor; the effective-user fallback is what keeps consumer Gmail accounts
+ * working, since getActiveUser() comes back blank for some of them.
+ */
+function getSignedInEmail_() {
+  return readEmail_(function () { return Session.getActiveUser().getEmail(); }) ||
+    readEmail_(function () { return Session.getEffectiveUser().getEmail(); });
+}
+
+/** Shown when doGet cannot tell who is visiting - usually the API URL. */
+function notTheAppHtml_(active, effective) {
+  return '<div style="font-family:Arial,sans-serif;padding:24px;max-width:600px;line-height:1.55;">' +
+    '<p>This URL is the CKOA API endpoint, not the app. Please use the app link your administrator gave you.</p>' +
+    '<p style="color:#666;font-size:13px;margin-top:24px;"><strong>Administrators</strong> &mdash; what this page can see:</p>' +
+    '<ul style="color:#666;font-size:13px;">' +
+    '<li>Active user: <code>' + (active ? escapeHtml_(active) : '(blank)') + '</code></li>' +
+    '<li>Effective user: <code>' + (effective ? escapeHtml_(effective) : '(blank)') + '</code></li>' +
+    '</ul>' +
+    '<p style="color:#666;font-size:13px;">If this is the App deployment and both are blank, the deployment needs ' +
+    '<em>Execute as: User accessing the web app</em> with <em>Anyone with a Google Account</em>, running the current ' +
+    'code version. If only the active user is blank, add <code>?app=1</code> to the end of the app link and use that.</p>' +
+    '</div>';
 }
 
 function callApi_(action, data) {
@@ -93,7 +114,7 @@ function callApi_(action, data) {
     throw new Error('This app is not finished being set up (API_URL / API_SECRET are missing). Please contact your administrator.');
   }
 
-  var email = getActiveUserEmail_();
+  var email = getSignedInEmail_();
   if (!email) {
     throw new Error('We could not tell which Google account you are signed in with. Please reload the page and try again.');
   }
