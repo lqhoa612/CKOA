@@ -34,12 +34,14 @@ App chỉ hiển thị những ngày giao còn trong hạn, và kiểm tra lại
 
 ### Tab `Restaurants`
 
-| Email | RestaurantName | DeliveryAddress | Active |
-|---|---|---|---|
-| hobartcbd@example.com | Hobart CBD | 45 Elizabeth St, Hobart TAS 7000 | TRUE |
-| sandybay@example.com | Sandy Bay | 12 King St, Sandy Bay TAS 7005 | TRUE |
+| Email | RestaurantName | OrdererName | DeliveryAddress | Active |
+|---|---|---|---|---|
+| hobartcbd@example.com | Hobart CBD | Minh Nguyen | 45 Elizabeth St, Hobart TAS 7000 | TRUE |
+| sandybay@example.com | Sandy Bay | Lan Tran | 12 King St, Sandy Bay TAS 7005 | TRUE |
 
 Mỗi dòng là một tài khoản Google được phép đăng nhập + tên nhà hàng sẽ hiện trên đơn/email. Đặt `Active` = `FALSE` để tạm khoá một nhà hàng mà không cần xoá dòng.
+
+`OrdererName` là tên người đặt gắn với email đó — hiện ở phần ký tên cuối email đơn hàng và ghi vào tab `Orders`. Người đặt **không phải gõ tên** mỗi lần đặt nữa; app tự lấy từ cột này. Để trống thì app dùng tạm địa chỉ email, nên nhớ điền cho từng nhà hàng.
 
 ### Tab `Items`
 
@@ -164,7 +166,7 @@ Phải cập nhật **cả hai** deployment, nếu không App và API sẽ chạ
 
 ## Ghi chú kỹ thuật
 
-- Ngày giao hàng cố định thứ 4 và thứ 6 hàng tuần (`DELIVERY_WEEKDAYS` trong `Code.gs`), có thể sửa nếu cần thêm ngày khác.
+- Ngày giao hàng cố định thứ 4 và thứ 6 hàng tuần (`DELIVERY_WEEKDAYS` trong `Code.gs`), có thể sửa nếu cần thêm ngày khác. App chỉ hiện **2 ngày giao gần nhất** còn trong hạn chốt đơn (`UPCOMING_DELIVERY_COUNT`).
 - Múi giờ đặt ở `timeZone` trong `appsscript.json` (hiện là `Australia/Hobart`) và được dùng cho toàn bộ app qua `Session.getScriptTimeZone()` — đổi một chỗ đó là đổi hết ngày giao, hạn chốt đơn và mã đơn hàng. Sau khi sửa manifest nhớ deploy version mới. Phép cộng ngày trong `Code.gs` tính theo lịch nên không lệch vào tuần đổi giờ mùa hè (DST).
 - Danh tính người dùng lấy từ `Session.getActiveUser()` phía deployment **App**, rồi được API kiểm tra lại với tab `Restaurants` trước mỗi thao tác — trình duyệt không tự khai được mình là ai.
 - `doGet` có chốt chặn: nếu không xác định được người đang đăng nhập (tức là đang chạy trên deployment API), nó trả về trang thông báo thay vì giao diện đặt hàng. Nếu không có chốt này, người lạ mở URL API sẽ chạy code dưới quyền admin.

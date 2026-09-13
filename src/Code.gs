@@ -36,7 +36,7 @@ var SHEET_NAMES = {
 };
 
 var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
-var UPCOMING_DELIVERY_COUNT = 4;
+var UPCOMING_DELIVERY_COUNT = 2;
 
 var PROP_API_URL = 'API_URL';
 var PROP_API_SECRET = 'API_SECRET';
@@ -285,7 +285,10 @@ function findRestaurantByEmail_(email) {
       return {
         email: email,
         name: r.RestaurantName,
-        address: r.DeliveryAddress || ''
+        address: r.DeliveryAddress || '',
+        // Who the order is signed by. Falls back to the email so an order can
+        // still go out if the admin has not filled the column in yet.
+        ordererName: String(r.OrdererName || '').trim() || email
       };
     }
   }
@@ -379,9 +382,6 @@ function apiSubmitOrder_(restaurant, order) {
   if (!order || !order.items || !order.items.length) {
     throw new Error('Your cart is empty.');
   }
-  if (!order.ordererName || !String(order.ordererName).trim()) {
-    throw new Error('Please enter your name.');
-  }
   if (!order.deliveryDate) {
     throw new Error('Please choose a delivery date.');
   }
@@ -424,7 +424,7 @@ function apiSubmitOrder_(restaurant, order) {
   }
 
   var orderId = 'ORD' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMdd-HHmmss');
-  var ordererName = String(order.ordererName).trim();
+  var ordererName = restaurant.ordererName;
 
   // Send first: if Gmail rejects the message there is no order, so the sheet
   // never ends up holding a row the kitchen has not actually been told about.
