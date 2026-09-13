@@ -57,7 +57,7 @@ function doGet(e) {
   var appMarker = !!(e && e.parameter && e.parameter.app === '1');
 
   if (!active && !(appMarker && effective)) {
-    return HtmlService.createHtmlOutput(notTheAppHtml_(active, effective));
+    return HtmlService.createHtmlOutput(notTheAppHtml_(active, effective, appMarker));
   }
 
   var template = HtmlService.createTemplateFromFile('Index');
@@ -92,17 +92,23 @@ function getSignedInEmail_() {
 }
 
 /** Shown when doGet cannot tell who is visiting - usually the API URL. */
-function notTheAppHtml_(active, effective) {
-  return '<div style="font-family:Arial,sans-serif;padding:24px;max-width:600px;line-height:1.55;">' +
+function notTheAppHtml_(active, effective, appMarker) {
+  var serviceUrl = '';
+  try { serviceUrl = ScriptApp.getService().getUrl() || ''; } catch (err) { serviceUrl = '(unavailable)'; }
+
+  return '<div style="font-family:Arial,sans-serif;padding:24px;max-width:640px;line-height:1.55;">' +
     '<p>This URL is the CKOA API endpoint, not the app. Please use the app link your administrator gave you.</p>' +
     '<p style="color:#666;font-size:13px;margin-top:24px;"><strong>Administrators</strong> &mdash; what this page can see:</p>' +
     '<ul style="color:#666;font-size:13px;">' +
     '<li>Active user: <code>' + (active ? escapeHtml_(active) : '(blank)') + '</code></li>' +
     '<li>Effective user: <code>' + (effective ? escapeHtml_(effective) : '(blank)') + '</code></li>' +
+    '<li>?app=1 present: <code>' + (appMarker ? 'yes' : 'no') + '</code></li>' +
+    '<li>This deployment&rsquo;s own URL:<br><code style="word-break:break-all;">' + escapeHtml_(serviceUrl) + '</code></li>' +
     '</ul>' +
-    '<p style="color:#666;font-size:13px;">If this is the App deployment and both are blank, the deployment needs ' +
-    '<em>Execute as: User accessing the web app</em> with <em>Anyone with a Google Account</em>, running the current ' +
-    'code version. If only the active user is blank, add <code>?app=1</code> to the end of the app link and use that.</p>' +
+    '<p style="color:#666;font-size:13px;">Compare that last URL with the <em>App</em> row in <em>Deploy &rarr; Manage ' +
+    'deployments</em>. If it matches the <em>API</em> row instead, you are simply on the wrong link. If it matches the ' +
+    'App row and both users are blank, this deployment is not running as the visitor &mdash; recreate it with ' +
+    '<em>Execute as: User accessing the web app</em> and <em>Anyone with a Google Account</em>.</p>' +
     '</div>';
 }
 
