@@ -58,8 +58,24 @@
         <h2>Confirm your order</h2>
         <button id="close-checkout" class="icon-btn" aria-label="Close">&times;</button>
       </div>
-      <div id="checkout-items"></div>
-      <div class="checkout-total">Total: <strong id="checkout-total">$0.00</strong></div>
+      <div class="checkout-table-wrap">
+        <table class="checkout-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th class="num">Qty</th>
+              <th>Unit</th>
+              <th class="num">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="checkout-items"></tbody>
+        </table>
+      </div>
+
+      <div class="checkout-actions">
+        <button id="clear-cart-btn" class="link-btn">Clear all items</button>
+        <span class="checkout-total">Total: <strong id="checkout-total">$0.00</strong></span>
+      </div>
 
       <label class="field-label">Delivery date</label>
       <div id="delivery-dates" class="delivery-dates"></div>
