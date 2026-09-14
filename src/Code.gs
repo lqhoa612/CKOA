@@ -220,6 +220,8 @@ function getConfig_() {
   }
   return {
     appTitle: config.AppTitle || 'Central Kitchen Ordering',
+    // Optional logo shown in the app header. Any URL the browser can load.
+    logoUrl: String(config.LogoUrl || '').trim(),
     centralKitchenEmail: config.CentralKitchenEmail || '',
     // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
     // of the delivery date. Default: 4pm the day before.
@@ -369,6 +371,7 @@ function addDays_(from, days) {
 function apiOrderPageData_(restaurant) {
   return {
     appTitle: getConfig_().appTitle,
+    logoUrl: getConfig_().logoUrl,
     restaurant: restaurant,
     items: getActiveItems_(),
     deliveryDates: getUpcomingDeliveryDates_()
