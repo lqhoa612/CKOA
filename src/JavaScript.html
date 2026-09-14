@@ -170,6 +170,7 @@
     document.getElementById('order-error').classList.add('hidden');
 
     var deliveryAddress = document.getElementById('delivery-address').value.trim();
+    var notes = document.getElementById('order-notes').value.trim();
     var lines = cartLines();
 
     if (!lines.length) { showOrderError('Your cart is empty.'); return; }
@@ -186,6 +187,7 @@
         btn.textContent = 'Place order';
         if (!result.ok) { showOrderError(result.message || 'Something went wrong.'); return; }
         state.cart = {};
+        document.getElementById('order-notes').value = '';
         closeCheckout();
         renderCatalog();
         renderCartBar();
@@ -199,7 +201,8 @@
       .submitOrder({
         items: lines.map(function (l) { return { id: l.id, qty: l.qty }; }),
         deliveryDate: state.selectedDate,
-        deliveryAddress: deliveryAddress
+        deliveryAddress: deliveryAddress,
+        notes: notes
       });
   });
 
@@ -247,6 +250,7 @@
         '<div class="order-top"><span>' + escapeHtml(o.orderId) + '</span><span>' + formatCurrency(o.total) + '</span></div>' +
         '<div class="order-items">' + escapeHtml(itemsSummary) + '</div>' +
         '<div class="order-items">Delivery: ' + escapeHtml(o.deliveryDate) + ' &middot; Placed: ' + escapeHtml(o.timestamp) + '</div>' +
+        (o.notes ? '<div class="order-note">Note: ' + escapeHtml(o.notes) + '</div>' : '') +
         '<span class="status-badge">' + escapeHtml(o.status) + '</span>' +
         '</div>'
       );
