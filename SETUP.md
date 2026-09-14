@@ -57,8 +57,10 @@ Mỗi dòng là một tài khoản Google được phép đăng nhập + tên nh
 
 ### Tab `Orders` (log, để app tự ghi — bạn chỉ cần tạo header)
 
-| OrderID | Timestamp | RestaurantEmail | RestaurantName | OrdererName | DeliveryDate | DeliveryAddress | ItemsJSON | Total | Status |
-|---|---|---|---|---|---|---|---|---|---|
+| OrderID | Timestamp | RestaurantEmail | RestaurantName | OrdererName | DeliveryDate | DeliveryAddress | ItemsJSON | Total | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|
+
+Thứ tự các cột ở tab này **phải giữ nguyên** — app ghi đơn theo đúng thứ tự trên. Cột `Notes` là ghi chú nhà hàng gửi kèm đơn (món ngoài danh sách, yêu cầu riêng...), để trống nếu họ không ghi gì.
 
 ## 2. Gắn Apps Script vào Sheet
 

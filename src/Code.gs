@@ -37,6 +37,7 @@ var SHEET_NAMES = {
 
 var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
 var UPCOMING_DELIVERY_COUNT = 2;
+var MAX_NOTES_LENGTH = 2000;
 
 var PROP_API_URL = 'API_URL';
 var PROP_API_SECRET = 'API_SECRET';
@@ -425,6 +426,7 @@ function apiSubmitOrder_(restaurant, order) {
 
   var orderId = 'ORD' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMdd-HHmmss');
   var ordererName = restaurant.ordererName;
+  var notes = String(order.notes || '').trim().slice(0, MAX_NOTES_LENGTH);
 
   // Send first: if Gmail rejects the message there is no order, so the sheet
   // never ends up holding a row the kitchen has not actually been told about.
@@ -436,7 +438,8 @@ function apiSubmitOrder_(restaurant, order) {
     deliveryLabel: selectedDate.label,
     deliveryAddress: address,
     lineItems: lineItems,
-    total: total
+    total: total,
+    notes: notes
   });
 
   getSheet_(SHEET_NAMES.ORDERS).appendRow([
@@ -449,7 +452,8 @@ function apiSubmitOrder_(restaurant, order) {
     address,
     JSON.stringify(lineItems),
     total,
-    'Sent'
+    'Sent',
+    notes
   ]);
 
   return { ok: true, orderId: orderId, total: total };
@@ -475,6 +479,11 @@ function sendOrderEmail_(data) {
   });
   textLines.push('');
   textLines.push('Total: ' + formatCurrency_(data.total));
+  if (data.notes) {
+    textLines.push('');
+    textLines.push('*** NOTES FROM THE RESTAURANT ***');
+    textLines.push(data.notes);
+  }
   textLines.push('');
   textLines.push('Order ref: ' + data.orderId);
   textLines.push('--');
@@ -509,6 +518,12 @@ function sendOrderEmail_(data) {
     '<tfoot><tr><td colspan="2" style="padding:6px 8px;text-align:right;"><strong>Total</strong></td>' +
     '<td style="padding:6px 8px;text-align:right;"><strong>' + formatCurrency_(data.total) + '</strong></td></tr></tfoot>' +
     '</table>' +
+    (data.notes
+      ? '<div style="margin-top:18px;padding:12px 14px;border-left:4px solid #c0392b;background:#fdf3f2;max-width:480px;">' +
+        '<div style="font-weight:bold;margin-bottom:4px;">Notes from the restaurant</div>' +
+        '<div style="white-space:pre-wrap;">' + escapeHtml_(data.notes) + '</div>' +
+        '</div>'
+      : '') +
     '<p style="margin-top:16px;color:#555;">Order ref: ' + escapeHtml_(data.orderId) + '</p>' +
     '<p>--<br>' + escapeHtml_(data.ordererName) + '<br>' + escapeHtml_(data.restaurant.name) + '</p>' +
     '</div>';
@@ -563,7 +578,8 @@ function apiMyOrders_(restaurant) {
       deliveryDate: r.DeliveryDate,
       items: items,
       total: r.Total,
-      status: r.Status
+      status: r.Status,
+      notes: String(r.Notes || '')
     };
   });
 }
