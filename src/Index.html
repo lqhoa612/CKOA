@@ -79,6 +79,11 @@
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
+  <script>
+    // Catalogue fetched server-side during doGet so the page has its data
+    // immediately instead of making another round trip once it loads.
+    var CKOA_BOOTSTRAP = <?!= bootstrapJson ?>;
+  </script>
   <?!= include('JavaScript'); ?>
 </body>
 </html>
