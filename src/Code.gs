@@ -220,7 +220,8 @@ function getConfig_() {
   }
   return {
     appTitle: config.AppTitle || 'Central Kitchen Ordering',
-    centralKitchenEmail: config.CentralKitchenEmail || '',
+    // One or more recipients: whoever at the kitchen should get the order.
+    centralKitchenEmail: parseEmailList_(config.CentralKitchenEmail).join(','),
     // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
     // of the delivery date. Default: 4pm the day before.
     orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
@@ -237,6 +238,17 @@ function parseAmount_(value) {
   var cleaned = String(value == null ? '' : value).replace(/[^0-9.\-]/g, '');
   var n = Number(cleaned);
   return isNaN(n) ? 0 : n;
+}
+
+/**
+ * Splits a Settings cell holding one or more email addresses. Accepts commas,
+ * semicolons and line breaks, since people type all three.
+ */
+function parseEmailList_(value) {
+  return String(value == null ? '' : value)
+    .split(/[,;\n]+/)
+    .map(function (s) { return s.trim(); })
+    .filter(function (s) { return s.length > 0; });
 }
 
 function numberOr_(value, fallback) {
