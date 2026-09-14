@@ -19,9 +19,16 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 | Key | Value |
 |---|---|
 | AppTitle | Central Kitchen Ordering |
-| CentralKitchenEmail | centralkitchen@example.com |
+| CentralKitchenEmail | kitchen@example.com,accountant@example.com |
 | OrderCutoffHour | 16 |
 | OrderCutoffDaysBefore | 1 |
+
+**Nhiều người cùng nhận đơn**: `CentralKitchenEmail` điền được nhiều địa chỉ, **ngăn cách bằng dấu phẩy**. Đây là hành vi sẵn có của `GmailApp`, không cần sửa code.
+
+- Chỉ dùng **dấu phẩy**. Dấu chấm phẩy `;` hoặc xuống dòng trong ô sẽ **không** chạy.
+- An toàn nhất là viết liền không khoảng trắng: `a@x.com,b@y.com`
+- Tất cả nằm ở dòng `To`. Email của nhà hàng đặt đơn luôn được **CC tự động**, không cần khai ở đây.
+- Mỗi địa chỉ tính một lượt trong hạn mức gửi mail hằng ngày của Gmail (100 lượt/ngày với Gmail cá nhân, 1.500 với Google Workspace).
 
 **Hạn chốt đơn** = `OrderCutoffHour` giờ, của `OrderCutoffDaysBefore` ngày trước ngày giao. Cấu hình mặc định ở trên nghĩa là **16:00 (4pm) ngày hôm trước**:
 
