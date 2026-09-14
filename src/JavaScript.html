@@ -84,7 +84,7 @@
           '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) + '</div>' +
           '</div>' +
           '<div class="qty-control">' +
-          '<button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>' +
+          '<button class="qty-btn qty-minus' + (qty > 0 ? ' primary' : '') + '" aria-label="Decrease quantity">-</button>' +
           '<span class="qty-value">' + qty + '</span>' +
           '<button class="qty-btn primary qty-plus" aria-label="Increase quantity">+</button>' +
           '</div></div>';
@@ -143,8 +143,12 @@
     if (!lines.length) return;
 
     var itemsHtml = lines.map(function (l) {
-      return '<div class="checkout-line"><span>' + escapeHtml(l.name) + ' x' + l.qty + '</span><span>' +
-        formatCurrency(l.price * l.qty) + '</span></div>';
+      return '<tr>' +
+        '<td>' + escapeHtml(l.name) + '</td>' +
+        '<td class="num">' + l.qty + '</td>' +
+        '<td>' + escapeHtml(l.unit) + '</td>' +
+        '<td class="num">' + formatCurrency(l.price * l.qty) + '</td>' +
+        '</tr>';
     }).join('');
     document.getElementById('checkout-items').innerHTML = itemsHtml;
     document.getElementById('checkout-total').textContent = formatCurrency(cartTotal());
@@ -175,6 +179,15 @@
   function closeCheckout() {
     document.getElementById('checkout-modal').classList.add('hidden');
   }
+
+  // Confirmed because it throws away everything the person has picked so far.
+  document.getElementById('clear-cart-btn').addEventListener('click', function () {
+    if (!window.confirm('Remove all items and start again?')) return;
+    state.cart = {};
+    closeCheckout();
+    renderCatalog();
+    renderCartBar();
+  });
 
   document.getElementById('submit-order-btn').addEventListener('click', function () {
     document.getElementById('order-error').classList.add('hidden');
