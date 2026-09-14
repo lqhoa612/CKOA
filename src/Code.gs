@@ -38,7 +38,6 @@ var SHEET_NAMES = {
 var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
 var UPCOMING_DELIVERY_COUNT = 2;
 var MAX_NOTES_LENGTH = 2000;
-var ORDERS_SCAN_ROWS = 1000; // how far back "My orders" looks in the Orders log
 
 var PROP_API_URL = 'API_URL';
 var PROP_API_SECRET = 'API_SECRET';
@@ -62,20 +61,8 @@ function doGet(e) {
     return HtmlService.createHtmlOutput(notTheAppHtml_(active, effective, appMarker));
   }
 
-  // Fetch the catalogue here rather than letting the page make a separate
-  // google.script.run call after it loads. That round trip costs a full extra
-  // hop through the Apps Script iframe RPC on every open, so inlining the data
-  // into the page removes the slowest single step of a cold load.
-  var bootstrap;
-  try {
-    bootstrap = { ok: true, data: callApi_('getOrderPageData') };
-  } catch (err) {
-    bootstrap = { ok: false, message: err.message || String(err) };
-  }
-
   var template = HtmlService.createTemplateFromFile('Index');
-  template.appTitle = (bootstrap.ok && bootstrap.data.appTitle) || 'Central Kitchen Ordering';
-  template.bootstrapJson = JSON.stringify(bootstrap).replace(/</g, '\\u003c');
+  template.appTitle = 'Central Kitchen Ordering';
   return template
     .evaluate()
     .setTitle('Central Kitchen Ordering')
@@ -222,11 +209,7 @@ function generateApiSecret() {
 // Config / sheet helpers
 // ---------------------------------------------------------------------------
 
-var CONFIG_CACHE_ = null;
-
-/** Read once per execution: several call sites need it in the same request. */
 function getConfig_() {
-  if (CONFIG_CACHE_) return CONFIG_CACHE_;
   var sheet = getSheet_(SHEET_NAMES.SETTINGS);
   var values = sheet.getDataRange().getValues();
   var config = {};
@@ -235,7 +218,7 @@ function getConfig_() {
     if (!key) continue;
     config[key] = values[i][1];
   }
-  CONFIG_CACHE_ = {
+  return {
     appTitle: config.AppTitle || 'Central Kitchen Ordering',
     centralKitchenEmail: config.CentralKitchenEmail || '',
     // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
@@ -243,7 +226,6 @@ function getConfig_() {
     orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
     orderCutoffDaysBefore: numberOr_(config.OrderCutoffDaysBefore, 1)
   };
-  return CONFIG_CACHE_;
 }
 
 /**
@@ -286,32 +268,6 @@ function sheetRowsAsObjects_(sheet) {
     var row = values[i];
     if (row.join('') === '') continue; // skip blank rows
     var obj = { _row: i + 1 };
-    for (var c = 0; c < headers.length; c++) {
-      obj[headers[c]] = row[c];
-    }
-    rows.push(obj);
-  }
-  return rows;
-}
-
-/**
- * Same shape as sheetRowsAsObjects_ but only reads the tail of the sheet, so
- * the Orders log does not get slower to open every week as it grows.
- */
-function recentRowsAsObjects_(sheet, maxRows) {
-  var lastRow = sheet.getLastRow();
-  var lastCol = sheet.getLastColumn();
-  if (lastRow < 2 || lastCol < 1) return [];
-
-  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
-  var startRow = Math.max(2, lastRow - maxRows + 1);
-  var values = sheet.getRange(startRow, 1, lastRow - startRow + 1, lastCol).getValues();
-
-  var rows = [];
-  for (var i = 0; i < values.length; i++) {
-    var row = values[i];
-    if (row.join('') === '') continue;
-    var obj = { _row: startRow + i };
     for (var c = 0; c < headers.length; c++) {
       obj[headers[c]] = row[c];
     }
@@ -608,7 +564,7 @@ function escapeHtml_(s) {
 // ---------------------------------------------------------------------------
 
 function apiMyOrders_(restaurant) {
-  var rows = recentRowsAsObjects_(getSheet_(SHEET_NAMES.ORDERS), ORDERS_SCAN_ROWS);
+  var rows = sheetRowsAsObjects_(getSheet_(SHEET_NAMES.ORDERS));
   var mine = rows.filter(function (r) {
     return String(r.RestaurantEmail || '').toLowerCase() === restaurant.email;
   });
