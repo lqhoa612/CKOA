@@ -19,9 +19,19 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 | Key | Value |
 |---|---|
 | AppTitle | Central Kitchen Ordering |
+| LogoUrl | *(tuỳ chọn, xem bên dưới)* |
 | CentralKitchenEmail | kitchen@example.com,accountant@example.com |
 | OrderCutoffHour | 16 |
 | OrderCutoffDaysBefore | 1 |
+
+**Logo** (`LogoUrl`): để trống thì app không hiện logo, chỉ hiện tên nhà hàng như bình thường. Muốn có logo thì điền một đường link ảnh mà trình duyệt tải được:
+
+- **Google Drive**: upload ảnh → chuột phải → **Share** → đổi thành **Anyone with the link** → copy link, lấy đoạn `FILE_ID` ở giữa, rồi điền vào ô:
+  `https://drive.google.com/thumbnail?id=FILE_ID&sz=w240`
+  (dùng dạng `thumbnail` này, dạng `uc?export=view` hay bị Google chặn khi nhúng)
+- **GitHub**: nếu repo của bạn ở chế độ public, upload ảnh vào repo rồi dùng link `raw.githubusercontent.com`.
+
+Logo hiện ở góc trên bên trái, cạnh tên nhà hàng, cao 34px. Ảnh nền trong suốt (PNG) trông gọn nhất. Nếu link hỏng hoặc ảnh không tải được, app tự ẩn logo đi chứ không hiện icon ảnh vỡ. Sửa ô này là có hiệu lực ngay, không cần deploy lại.
 
 **Nhiều người cùng nhận đơn**: `CentralKitchenEmail` điền được nhiều địa chỉ, **ngăn cách bằng dấu phẩy**. Đây là hành vi sẵn có của `GmailApp`, không cần sửa code.
 

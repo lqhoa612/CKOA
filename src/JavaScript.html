@@ -32,7 +32,17 @@
     document.getElementById('app-screen').classList.remove('hidden');
     document.getElementById('restaurant-name').textContent = state.restaurant.name;
     document.getElementById('restaurant-email').textContent = state.restaurant.email;
+    showLogo(data.logoUrl);
     renderCatalog();
+  }
+
+  /** Stays hidden when no logo is configured, or when the URL fails to load. */
+  function showLogo(url) {
+    if (!url) return;
+    var img = document.getElementById('brand-logo');
+    img.onload = function () { img.classList.remove('hidden'); };
+    img.onerror = function () { img.classList.add('hidden'); };
+    img.src = url;
   }
 
   function showStartupError(msg) {
