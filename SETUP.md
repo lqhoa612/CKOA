@@ -19,9 +19,11 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 | Key | Value |
 |---|---|
 | AppTitle | Central Kitchen Ordering |
-| CentralKitchenEmail | centralkitchen@example.com |
+| CentralKitchenEmail | centralkitchen@example.com, manager@example.com |
 | OrderCutoffHour | 16 |
 | OrderCutoffDaysBefore | 1 |
+
+`CentralKitchenEmail` nhận **nhiều địa chỉ** nếu muốn nhiều người cùng nhận đơn — ngăn cách bằng dấu phẩy (dấu chấm phẩy hoặc xuống dòng trong ô cũng được). Tất cả cùng nằm ở dòng `To` của email.
 
 **Hạn chốt đơn** = `OrderCutoffHour` giờ, của `OrderCutoffDaysBefore` ngày trước ngày giao. Cấu hình mặc định ở trên nghĩa là **16:00 (4pm) ngày hôm trước**:
 
