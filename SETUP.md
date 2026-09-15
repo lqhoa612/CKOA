@@ -21,8 +21,14 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 | AppTitle | Central Kitchen Ordering |
 | LogoUrl | *(tuỳ chọn, xem bên dưới)* |
 | CentralKitchenEmail | kitchen@example.com,accountant@example.com |
+| InvoiceEmail | accountant@example.com |
+| KitchenName | Saigon Express Central Kitchen |
 | OrderCutoffHour | 16 |
 | OrderCutoffDaysBefore | 1 |
+
+`InvoiceEmail` là nơi nhận invoice do bếp xuất (thường là kế toán). Để trống thì dùng `CentralKitchenEmail`. Nhà hàng luôn được CC.
+
+`KitchenName` là tên bên bán hiện trên invoice. Để trống thì dùng `AppTitle`.
 
 **Logo** (`LogoUrl`): để trống thì app không hiện logo, chỉ hiện tên nhà hàng như bình thường. Muốn có logo thì điền một đường link ảnh mà trình duyệt tải được:
 
@@ -66,12 +72,22 @@ App chỉ hiển thị những ngày giao còn trong hạn, và kiểm tra lại
 
 ### Tab `Restaurants`
 
-| Email | RestaurantName | OrdererName | DeliveryAddress | Active |
-|---|---|---|---|---|
-| hobartcbd@example.com | Hobart CBD | Minh Nguyen | 45 Elizabeth St, Hobart TAS 7000 | TRUE |
-| sandybay@example.com | Sandy Bay | Lan Tran | 12 King St, Sandy Bay TAS 7005 | TRUE |
+| Email | RestaurantName | OrdererName | DeliveryAddress | Active | Role |
+|---|---|---|---|---|---|
+| hobartcbd@example.com | Hobart CBD | Minh Nguyen | 45 Elizabeth St, Hobart TAS 7000 | TRUE | |
+| sandybay@example.com | Sandy Bay | Lan Tran | 12 King St, Sandy Bay TAS 7005 | TRUE | |
+| kitchen.manager@example.com | Central Kitchen | Hoa Le | | TRUE | kitchen |
 
 Mỗi dòng là một tài khoản Google được phép đăng nhập + tên nhà hàng sẽ hiện trên đơn/email. Đặt `Active` = `FALSE` để tạm khoá một nhà hàng mà không cần xoá dòng.
+
+Cột **`Role`** quyết định người đó thấy màn hình nào:
+
+| `Role` | Thấy gì |
+|---|---|
+| để trống | Màn hình đặt hàng bình thường (nhà hàng) |
+| `kitchen` | Màn hình bếp trung tâm: danh sách đơn cần xử lý và xuất invoice |
+
+Tài khoản `kitchen` **không đặt hàng được**, và ngược lại nhà hàng không vào được màn hình của bếp. Dòng `kitchen` không cần điền `DeliveryAddress`.
 
 ### Nhà hàng dùng email công ty / Outlook thì sao?
 
@@ -105,10 +121,21 @@ Sau đó điền đúng địa chỉ công ty đó vào cột `Email` của tab 
 
 ### Tab `Orders` (log, để app tự ghi — bạn chỉ cần tạo header)
 
-| OrderID | Timestamp | RestaurantEmail | RestaurantName | OrdererName | DeliveryDate | DeliveryAddress | ItemsJSON | Total | Status | Notes |
-|---|---|---|---|---|---|---|---|---|---|---|
+| OrderID | Timestamp | RestaurantEmail | RestaurantName | OrdererName | DeliveryDate | DeliveryAddress | ItemsJSON | Total | Status | Notes | SuppliedJSON | InvoiceRef | InvoiceTotal | InvoicedAt | KitchenNote |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 
-Thứ tự các cột ở tab này **phải giữ nguyên** — app ghi đơn theo đúng thứ tự trên. Cột `Notes` là ghi chú nhà hàng gửi kèm đơn (món ngoài danh sách, yêu cầu riêng...), để trống nếu họ không ghi gì.
+**11 cột đầu phải giữ đúng thứ tự** — app ghi đơn mới theo đúng thứ tự đó. Năm cột cuối do bếp trung tâm ghi khi xuất invoice, app tìm theo **tên cột** nên đặt đâu cũng được, miễn có mặt ở hàng tiêu đề.
+
+| Cột | Ai ghi | Nội dung |
+|---|---|---|
+| `Notes` | Nhà hàng | Ghi chú kèm đơn (món ngoài danh sách, yêu cầu riêng) |
+| `SuppliedJSON` | Bếp | Số lượng thực giao từng món |
+| `InvoiceRef` | Bếp | Mã invoice, dạng `INV260915-143012` |
+| `InvoiceTotal` | Bếp | Số tiền thực tính, theo hàng đã giao |
+| `InvoicedAt` | Bếp | Thời điểm xuất invoice |
+| `KitchenNote` | Bếp | Lý do thiếu hàng, hàng thay thế... |
+
+Cột `Status`: `Sent` = nhà hàng đã gửi, bếp chưa xử lý. `Invoiced` = bếp đã xuất invoice.
 
 ## 2. Gắn Apps Script vào Sheet
 
@@ -205,6 +232,32 @@ Phải cập nhật **cả hai** deployment, nếu không App và API sẽ chạ
    - Một dòng mới xuất hiện trong tab `Orders`.
    - Mục **My orders** trong app hiển thị đơn vừa gửi.
 4. Thử bằng một tài khoản Google **không** có trong tab `Restaurants` — app phải chặn lại kèm thông báo chưa được đăng ký.
+
+## Bếp trung tâm xuất invoice
+
+Bếp không phải lúc nào cũng đáp ứng đủ đơn. Thay vì giao thiếu rồi hai bên tự nhớ, quản lý bếp ghi lại **số thực giao** và xuất invoice theo đúng số đó.
+
+**Luồng:**
+
+1. Nhà hàng gửi đơn → dòng mới trong tab `Orders`, `Status` = `Sent`
+2. Quản lý bếp mở app (tài khoản có `Role` = `kitchen`) → tab **To fulfil** liệt kê các đơn chưa xử lý
+3. Bấm **Fulfil this order** → bảng hiện từng món với số đã đặt và ô nhập **số thực giao** (mặc định bằng số đặt)
+4. Sửa số lượng những món giao thiếu, ghi chú lý do nếu cần
+5. Bấm **Issue invoice**
+
+**Kết quả:**
+
+- Email invoice gửi tới `InvoiceEmail` (kế toán), CC nhà hàng, **kèm file PDF**
+- Invoice liệt kê từng món: Ordered / Supplied / Short / Unit / Price / Amount
+- **Chỉ tính tiền phần đã giao.** Phần thiếu hiện ở cột Short để đối chiếu, không tính tiền
+- Dòng đơn trong tab `Orders` được cập nhật, `Status` chuyển thành `Invoiced`
+
+**Một số quy tắc:**
+
+- Không khai số giao lớn hơn số đặt — app tự chặn về đúng số đã đặt
+- Một đơn chỉ xuất invoice được **một lần**; mở lại sẽ báo đã xuất rồi kèm mã invoice cũ
+- Nếu gửi email lỗi thì Sheet không bị ghi, tránh tình trạng hệ thống báo đã xuất mà kế toán không nhận được gì
+- Giá lấy từ lúc đặt hàng (đã lưu trong `ItemsJSON`), nên sửa giá trong tab `Items` về sau không làm sai lệch đơn cũ
 
 ## Quản lý vận hành
 
