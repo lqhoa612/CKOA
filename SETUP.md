@@ -70,6 +70,22 @@ App chỉ hiển thị những ngày giao còn trong hạn, và kiểm tra lại
 
 Mỗi dòng là một tài khoản Google được phép đăng nhập + tên nhà hàng sẽ hiện trên đơn/email. Đặt `Active` = `FALSE` để tạm khoá một nhà hàng mà không cần xoá dòng.
 
+### Nhà hàng dùng email công ty / Outlook thì sao?
+
+App nhận diện người dùng qua **tài khoản Google**, nhưng tài khoản Google **không bắt buộc phải là địa chỉ @gmail.com**. Địa chỉ công ty đang chạy trên Microsoft 365 (Outlook) vẫn đăng ký làm tài khoản Google được, và người dùng không phải đổi email hay chuyển hộp thư đi đâu cả.
+
+Cách làm, mỗi nhà hàng làm một lần:
+
+1. Vào [accounts.google.com/signup](https://accounts.google.com/signup)
+2. Ở ô nhập tên tài khoản, bấm dòng **"Use your existing email address instead"** (Google hay đổi vị trí dòng này, cứ tìm chữ *existing email*)
+3. Nhập địa chỉ công ty, ví dụ `hobart@saigonexpress.com.au`
+4. Google gửi mã xác minh **về chính hộp thư Outlook đó** — mở Outlook lấy mã, nhập vào
+5. Đặt mật khẩu → xong
+
+Sau đó điền đúng địa chỉ công ty đó vào cột `Email` của tab `Restaurants` như các nhà hàng khác. Email đơn hàng CC về địa chỉ này cũng vào thẳng Outlook như thường.
+
+**Lưu ý khi đăng nhập**: trên máy đang đăng nhập sẵn một tài khoản Google khác, họ phải bấm chuyển tài khoản khi mở link app, nếu không Google sẽ dùng tài khoản đang đăng nhập và app báo chưa được đăng ký.
+
 `OrdererName` là tên người đặt gắn với email đó — hiện ở phần ký tên cuối email đơn hàng và ghi vào tab `Orders`. Người đặt **không phải gõ tên** mỗi lần đặt nữa; app tự lấy từ cột này. Để trống thì app dùng tạm địa chỉ email, nên nhớ điền cho từng nhà hàng.
 
 ### Tab `Items`
