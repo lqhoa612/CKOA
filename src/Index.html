@@ -29,6 +29,8 @@
       <nav class="header-nav">
         <button id="nav-catalog" class="nav-btn active">Order</button>
         <button id="nav-history" class="nav-btn">My orders</button>
+        <button id="nav-kitchen" class="nav-btn hidden">To fulfil</button>
+        <button id="nav-invoiced" class="nav-btn hidden">Invoiced</button>
       </nav>
     </header>
 
@@ -40,6 +42,16 @@
     <!-- History view -->
     <main id="history-view" class="hidden">
       <div id="history-list"></div>
+    </main>
+
+    <!-- Central kitchen: orders waiting to be fulfilled -->
+    <main id="kitchen-view" class="hidden">
+      <div id="kitchen-list"></div>
+    </main>
+
+    <!-- Central kitchen: invoices already issued -->
+    <main id="invoiced-view" class="hidden">
+      <div id="invoiced-list"></div>
     </main>
 
     <!-- Cart bar -->

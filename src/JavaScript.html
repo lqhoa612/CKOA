@@ -4,10 +4,13 @@
 
   var state = {
     restaurant: null,
+    role: '',
     items: [],
     deliveryDates: [],
     selectedDate: null,
-    cart: {} // id -> qty
+    cart: {}, // id -> qty
+    kitchen: { pending: [], invoiced: [] },
+    openOrderId: null // which order the kitchen has expanded
   };
 
   // ---------------------------------------------------------------------
@@ -26,6 +29,7 @@
     state.restaurant = data.restaurant;
     state.items = data.items;
     state.deliveryDates = data.deliveryDates;
+    state.role = data.role || '';
     if (state.deliveryDates.length) state.selectedDate = state.deliveryDates[0].iso;
 
     document.getElementById('startup-screen').classList.add('hidden');
@@ -33,7 +37,18 @@
     document.getElementById('restaurant-name').textContent = state.restaurant.name;
     document.getElementById('restaurant-email').textContent = state.restaurant.email;
     showLogo(data.logoUrl);
-    renderCatalog();
+
+    if (state.role === 'kitchen') {
+      // Kitchen staff fulfil orders rather than place them, so they get a
+      // different pair of tabs entirely.
+      document.getElementById('nav-catalog').classList.add('hidden');
+      document.getElementById('nav-history').classList.add('hidden');
+      document.getElementById('nav-kitchen').classList.remove('hidden');
+      document.getElementById('nav-invoiced').classList.remove('hidden');
+      switchView('kitchen');
+    } else {
+      renderCatalog();
+    }
   }
 
   /** Stays hidden when no logo is configured, or when the URL fails to load. */
@@ -242,13 +257,19 @@
   document.getElementById('nav-catalog').addEventListener('click', function () { switchView('catalog'); });
   document.getElementById('nav-history').addEventListener('click', function () { switchView('history'); });
 
+  document.getElementById('nav-kitchen').addEventListener('click', function () { switchView('kitchen'); });
+  document.getElementById('nav-invoiced').addEventListener('click', function () { switchView('invoiced'); });
+
   function switchView(view) {
-    document.getElementById('catalog-view').classList.toggle('hidden', view !== 'catalog');
-    document.getElementById('history-view').classList.toggle('hidden', view !== 'history');
+    ['catalog', 'history', 'kitchen', 'invoiced'].forEach(function (v) {
+      document.getElementById(v + '-view').classList.toggle('hidden', v !== view);
+      var nav = document.getElementById('nav-' + v);
+      if (nav) nav.classList.toggle('active', v === view);
+    });
     document.getElementById('cart-bar').classList.toggle('hidden', view !== 'catalog' || !cartLines().length);
-    document.getElementById('nav-catalog').classList.toggle('active', view === 'catalog');
-    document.getElementById('nav-history').classList.toggle('active', view === 'history');
+
     if (view === 'history') loadHistory();
+    if (view === 'kitchen' || view === 'invoiced') loadKitchenOrders(view);
   }
 
   function loadHistory() {
@@ -277,6 +298,185 @@
         '<span class="status-badge">' + escapeHtml(o.status) + '</span>' +
         '</div>'
       );
+    }).join('');
+  }
+
+  // ---------------------------------------------------------------------
+  // Central kitchen: fulfil orders and issue invoices
+  // ---------------------------------------------------------------------
+
+  function loadKitchenOrders(view) {
+    var container = document.getElementById(view + '-list');
+    container.innerHTML = '<div class="empty-state">Loading...</div>';
+    google.script.run
+      .withSuccessHandler(function (data) {
+        state.kitchen = data;
+        renderKitchen(view);
+      })
+      .withFailureHandler(function (err) {
+        container.innerHTML = '<div class="empty-state">' + escapeHtml(err.message || String(err)) + '</div>';
+      })
+      .getKitchenOrders();
+  }
+
+  function renderKitchen(view) {
+    if (view === 'invoiced') return renderInvoiced();
+
+    var container = document.getElementById('kitchen-list');
+    var orders = state.kitchen.pending || [];
+    if (!orders.length) {
+      container.innerHTML = '<div class="empty-state">No orders waiting. Everything has been invoiced.</div>';
+      return;
+    }
+
+    container.innerHTML = orders.map(function (o) {
+      var isOpen = o.orderId === state.openOrderId;
+      var itemCount = o.items.reduce(function (s, i) { return s + i.qty; }, 0);
+      return '<div class="order-card kitchen-card" data-order="' + escapeHtml(o.orderId) + '">' +
+        '<div class="order-top"><span>' + escapeHtml(o.restaurantName) + '</span>' +
+        '<span class="muted small">' + escapeHtml(o.orderId) + '</span></div>' +
+        '<div class="order-items">Delivery: ' + escapeHtml(o.deliveryDate) +
+        ' &middot; ' + itemCount + ' items &middot; ordered by ' + escapeHtml(o.ordererName) + '</div>' +
+        (o.notes ? '<div class="order-note">Note: ' + escapeHtml(o.notes) + '</div>' : '') +
+        (isOpen ? fulfilFormHtml(o) : '<button class="secondary-btn open-order-btn">Fulfil this order</button>') +
+        '</div>';
+    }).join('');
+
+    bindKitchenHandlers();
+  }
+
+  function fulfilFormHtml(o) {
+    var rows = o.items.map(function (li) {
+      return '<tr>' +
+        '<td>' + escapeHtml(li.name) + '</td>' +
+        '<td class="num">' + li.qty + '</td>' +
+        '<td><input type="number" class="supplied-input" data-id="' + escapeHtml(li.id) + '" ' +
+        'value="' + li.qty + '" min="0" max="' + li.qty + '" step="any" inputmode="decimal"></td>' +
+        '<td>' + escapeHtml(li.unit) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    return '<div class="fulfil-form">' +
+      '<div class="checkout-table-wrap"><table class="checkout-table"><thead><tr>' +
+      '<th>Item</th><th class="num">Ordered</th><th>Supplied</th><th>Unit</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="fulfil-actions">' +
+      '<button class="link-btn supply-none-btn">Set all to 0</button>' +
+      '<button class="link-btn supply-all-btn">Supply all as ordered</button>' +
+      '</div>' +
+      '<label class="field-label" for="kitchen-note">Note for the restaurant and accountant ' +
+      '<span class="field-optional">optional</span></label>' +
+      '<textarea id="kitchen-note" rows="2" placeholder="Why an item is short, substitutions, etc."></textarea>' +
+      '<p class="issue-error error hidden"></p>' +
+      '<button class="primary-btn issue-invoice-btn">Issue invoice</button>' +
+      '<button class="link-btn cancel-fulfil-btn" style="display:block;margin:10px auto 0;">Cancel</button>' +
+      '</div>';
+  }
+
+  function bindKitchenHandlers() {
+    var container = document.getElementById('kitchen-list');
+
+    container.querySelectorAll('.open-order-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.openOrderId = btn.closest('.kitchen-card').getAttribute('data-order');
+        renderKitchen('kitchen');
+      });
+    });
+
+    container.querySelectorAll('.cancel-fulfil-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.openOrderId = null;
+        renderKitchen('kitchen');
+      });
+    });
+
+    container.querySelectorAll('.supply-all-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btn.closest('.kitchen-card').querySelectorAll('.supplied-input').forEach(function (input) {
+          input.value = input.getAttribute('max');
+        });
+      });
+    });
+
+    container.querySelectorAll('.supply-none-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btn.closest('.kitchen-card').querySelectorAll('.supplied-input').forEach(function (input) {
+          input.value = 0;
+        });
+      });
+    });
+
+    container.querySelectorAll('.issue-invoice-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { submitInvoice(btn); });
+    });
+  }
+
+  function submitInvoice(btn) {
+    var card = btn.closest('.kitchen-card');
+    var orderId = card.getAttribute('data-order');
+    var errorEl = card.querySelector('.issue-error');
+    errorEl.classList.add('hidden');
+
+    var supplied = [];
+    var shortCount = 0;
+    card.querySelectorAll('.supplied-input').forEach(function (input) {
+      var ordered = Number(input.getAttribute('max')) || 0;
+      var qty = Math.min(Math.max(0, Number(input.value) || 0), ordered);
+      if (qty < ordered) shortCount++;
+      supplied.push({ id: input.getAttribute('data-id'), qty: qty });
+    });
+
+    var message = shortCount
+      ? 'Issue this invoice? ' + shortCount + ' item(s) are short of what was ordered.'
+      : 'Issue this invoice for the full order?';
+    if (!window.confirm(message)) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Issuing...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Issue invoice';
+        state.openOrderId = null;
+        toast('Invoice ' + result.invoiceRef + ' sent.');
+        loadKitchenOrders('kitchen');
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Issue invoice';
+        errorEl.textContent = err.message || String(err);
+        errorEl.classList.remove('hidden');
+      })
+      .issueInvoice({
+        orderId: orderId,
+        supplied: supplied,
+        kitchenNote: (card.querySelector('#kitchen-note') || {}).value || ''
+      });
+  }
+
+  function renderInvoiced() {
+    var container = document.getElementById('invoiced-list');
+    var orders = state.kitchen.invoiced || [];
+    if (!orders.length) {
+      container.innerHTML = '<div class="empty-state">No invoices issued yet.</div>';
+      return;
+    }
+    container.innerHTML = orders.map(function (o) {
+      var short = (o.supplied || []).filter(function (li) { return li.shortQty > 0; });
+      return '<div class="order-card">' +
+        '<div class="order-top"><span>' + escapeHtml(o.invoiceRef || o.orderId) + '</span>' +
+        '<span>' + formatCurrency(o.invoiceTotal) + '</span></div>' +
+        '<div class="order-items">' + escapeHtml(o.restaurantName) +
+        ' &middot; delivery ' + escapeHtml(o.deliveryDate) + '</div>' +
+        (short.length
+          ? '<div class="order-note">Short: ' + escapeHtml(short.map(function (li) {
+              return li.name + ' -' + li.shortQty;
+            }).join(', ')) + '</div>'
+          : '') +
+        (o.kitchenNote ? '<div class="order-note">Note: ' + escapeHtml(o.kitchenNote) + '</div>' : '') +
+        '<span class="status-badge">' + escapeHtml(o.status) + '</span>' +
+        '</div>';
     }).join('');
   }
 

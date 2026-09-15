@@ -38,6 +38,11 @@ var SHEET_NAMES = {
 var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
 var UPCOMING_DELIVERY_COUNT = 2;
 var MAX_NOTES_LENGTH = 2000;
+var KITCHEN_QUEUE_SCAN_ROWS = 300; // how far back the kitchen queue looks
+
+var ROLE_KITCHEN = 'kitchen';
+var STATUS_SENT = 'Sent';
+var STATUS_INVOICED = 'Invoiced';
 
 var PROP_API_URL = 'API_URL';
 var PROP_API_SECRET = 'API_SECRET';
@@ -148,6 +153,8 @@ function callApi_(action, data) {
 function getOrderPageData() { return callApi_('getOrderPageData'); }
 function submitOrder(order) { return callApi_('submitOrder', order); }
 function getMyOrders() { return callApi_('getMyOrders'); }
+function getKitchenOrders() { return callApi_('getKitchenOrders'); }
+function issueInvoice(payload) { return callApi_('issueInvoice', payload); }
 
 // ===========================================================================
 // API SIDE - runs as the admin, owns the spreadsheet and sends the email
@@ -175,6 +182,8 @@ function doPost(e) {
       case 'getOrderPageData': data = apiOrderPageData_(restaurant); break;
       case 'submitOrder': data = apiSubmitOrder_(restaurant, body.data || {}); break;
       case 'getMyOrders': data = apiMyOrders_(restaurant); break;
+      case 'getKitchenOrders': data = apiKitchenOrders_(restaurant); break;
+      case 'issueInvoice': data = apiIssueInvoice_(restaurant, body.data || {}); break;
       default: return jsonOutput_({ ok: false, message: 'Unknown action.' });
     }
     return jsonOutput_({ ok: true, data: data });
@@ -223,6 +232,10 @@ function getConfig_() {
     // Optional logo shown in the app header. Any URL the browser can load.
     logoUrl: String(config.LogoUrl || '').trim(),
     centralKitchenEmail: config.CentralKitchenEmail || '',
+    // Where invoices go - the accountant. Falls back to the kitchen address.
+    invoiceEmail: String(config.InvoiceEmail || '').trim() || String(config.CentralKitchenEmail || ''),
+    // Shown on the invoice as the supplier. Falls back to the app title.
+    kitchenName: String(config.KitchenName || '').trim() || String(config.AppTitle || 'Central Kitchen'),
     // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
     // of the delivery date. Default: 4pm the day before.
     orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
@@ -291,7 +304,10 @@ function findRestaurantByEmail_(email) {
         address: r.DeliveryAddress || '',
         // Who the order is signed by. Falls back to the email so an order can
         // still go out if the admin has not filled the column in yet.
-        ordererName: String(r.OrdererName || '').trim() || email
+        ordererName: String(r.OrdererName || '').trim() || email,
+        // Blank means an ordering restaurant; "kitchen" means central kitchen
+        // staff, who fulfil orders and issue invoices instead of ordering.
+        role: String(r.Role || '').trim().toLowerCase()
       };
     }
   }
@@ -368,13 +384,164 @@ function addDays_(from, days) {
   return new Date(from.getFullYear(), from.getMonth(), from.getDate() + days, 0, 0, 0, 0);
 }
 
+// ---------------------------------------------------------------------------
+// Central kitchen: fulfil orders and issue invoices
+//
+// The kitchen cannot always supply everything a restaurant ordered. Rather than
+// silently shipping short, the manager records what actually went out and
+// issues an invoice for that. The invoice bills the supplied quantities and
+// lists the shortfall line by line, so the accountant settles on real figures.
+// ---------------------------------------------------------------------------
+
+function requireKitchen_(user) {
+  if (user.role !== ROLE_KITCHEN) {
+    throw new Error('This screen is for central kitchen staff only.');
+  }
+}
+
+/** Header row plus a name -> column lookup, so column order can change safely. */
+function ordersSheetContext_() {
+  var sheet = getSheet_(SHEET_NAMES.ORDERS);
+  var lastCol = Math.max(1, sheet.getLastColumn());
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+    .map(function (h) { return String(h).trim(); });
+  return { sheet: sheet, headers: headers };
+}
+
+function columnNumber_(headers, name) {
+  var i = headers.indexOf(name);
+  if (i === -1) {
+    throw new Error('The Orders tab has no "' + name + '" column. Add it to the header row - see SETUP.md.');
+  }
+  return i + 1;
+}
+
+function parseItemsJson_(value) {
+  try {
+    var parsed = JSON.parse(value || '[]');
+    return Object.prototype.toString.call(parsed) === '[object Array]' ? parsed : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function orderRowToObject_(r) {
+  return {
+    orderId: r.OrderID,
+    timestamp: r.Timestamp ? Utilities.formatDate(new Date(r.Timestamp), getTimeZone_(), 'dd/MM/yyyy HH:mm') : '',
+    restaurantName: r.RestaurantName,
+    restaurantEmail: r.RestaurantEmail,
+    ordererName: r.OrdererName,
+    deliveryDate: r.DeliveryDate,
+    deliveryAddress: r.DeliveryAddress,
+    items: parseItemsJson_(r.ItemsJSON),
+    supplied: parseItemsJson_(r.SuppliedJSON),
+    total: r.Total,
+    status: r.Status,
+    notes: String(r.Notes || ''),
+    kitchenNote: String(r.KitchenNote || ''),
+    invoiceRef: String(r.InvoiceRef || ''),
+    invoiceTotal: r.InvoiceTotal
+  };
+}
+
+/** Orders waiting to be fulfilled, plus recently invoiced ones for reference. */
+function apiKitchenOrders_(user) {
+  requireKitchen_(user);
+  var rows = sheetRowsAsObjects_(getSheet_(SHEET_NAMES.ORDERS));
+  var recent = rows.slice(-KITCHEN_QUEUE_SCAN_ROWS).map(orderRowToObject_);
+  recent.sort(function (a, b) { return (b.orderId || '').localeCompare(a.orderId || ''); });
+
+  return {
+    pending: recent.filter(function (o) { return String(o.status) !== STATUS_INVOICED; }),
+    invoiced: recent.filter(function (o) { return String(o.status) === STATUS_INVOICED; }).slice(0, 20)
+  };
+}
+
+/**
+ * Records what the kitchen actually supplied and bills for it.
+ * payload: { orderId, supplied: [{id, qty}], kitchenNote }
+ */
+function apiIssueInvoice_(user, payload) {
+  requireKitchen_(user);
+
+  var orderId = String((payload && payload.orderId) || '').trim();
+  if (!orderId) throw new Error('No order was selected.');
+
+  var ctx = ordersSheetContext_();
+  var rows = sheetRowsAsObjects_(ctx.sheet);
+  var match = rows.filter(function (r) { return String(r.OrderID) === orderId; })[0];
+  if (!match) throw new Error('Order ' + orderId + ' was not found.');
+  if (String(match.Status) === STATUS_INVOICED) {
+    throw new Error('Order ' + orderId + ' has already been invoiced as ' + (match.InvoiceRef || 'an invoice') + '.');
+  }
+
+  var ordered = parseItemsJson_(match.ItemsJSON);
+  if (!ordered.length) throw new Error('Order ' + orderId + ' has no items to invoice.');
+
+  var suppliedById = {};
+  ((payload && payload.supplied) || []).forEach(function (s) {
+    suppliedById[String(s.id)] = Math.max(0, Number(s.qty) || 0);
+  });
+
+  var lines = [];
+  var invoiceTotal = 0;
+  var shortfallCount = 0;
+  ordered.forEach(function (li) {
+    // Unlisted item means nothing was supplied, not "supply everything".
+    var suppliedQty = suppliedById.hasOwnProperty(String(li.id)) ? suppliedById[String(li.id)] : 0;
+    if (suppliedQty > li.qty) suppliedQty = li.qty; // cannot bill more than ordered
+    var lineTotal = (Number(li.price) || 0) * suppliedQty;
+    invoiceTotal += lineTotal;
+    if (suppliedQty < li.qty) shortfallCount++;
+    lines.push({
+      id: li.id,
+      name: li.name,
+      unit: li.unit,
+      price: li.price,
+      orderedQty: li.qty,
+      qty: suppliedQty,
+      shortQty: li.qty - suppliedQty,
+      lineTotal: lineTotal
+    });
+  });
+
+  var invoiceRef = 'INV' + Utilities.formatDate(new Date(), getTimeZone_(), 'yyMMdd-HHmmss');
+  var kitchenNote = String((payload && payload.kitchenNote) || '').trim().slice(0, MAX_NOTES_LENGTH);
+  var order = orderRowToObject_(match);
+
+  // Email first: a failure here must not leave the sheet claiming the invoice
+  // was issued when nobody has received it.
+  sendInvoiceEmail_({
+    invoiceRef: invoiceRef,
+    issuedBy: user.ordererName || user.email,
+    order: order,
+    lines: lines,
+    invoiceTotal: invoiceTotal,
+    shortfallCount: shortfallCount,
+    kitchenNote: kitchenNote
+  });
+
+  var row = match._row;
+  ctx.sheet.getRange(row, columnNumber_(ctx.headers, 'SuppliedJSON')).setValue(JSON.stringify(lines));
+  ctx.sheet.getRange(row, columnNumber_(ctx.headers, 'InvoiceRef')).setValue(invoiceRef);
+  ctx.sheet.getRange(row, columnNumber_(ctx.headers, 'InvoiceTotal')).setValue(invoiceTotal);
+  ctx.sheet.getRange(row, columnNumber_(ctx.headers, 'InvoicedAt')).setValue(new Date());
+  ctx.sheet.getRange(row, columnNumber_(ctx.headers, 'KitchenNote')).setValue(kitchenNote);
+  ctx.sheet.getRange(row, columnNumber_(ctx.headers, 'Status')).setValue(STATUS_INVOICED);
+
+  return { ok: true, invoiceRef: invoiceRef, invoiceTotal: invoiceTotal, shortfallCount: shortfallCount };
+}
+
 function apiOrderPageData_(restaurant) {
   return {
     appTitle: getConfig_().appTitle,
     logoUrl: getConfig_().logoUrl,
     restaurant: restaurant,
-    items: getActiveItems_(),
-    deliveryDates: getUpcomingDeliveryDates_()
+    role: restaurant.role,
+    // Kitchen staff do not order, so skip the catalogue work for them.
+    items: restaurant.role === ROLE_KITCHEN ? [] : getActiveItems_(),
+    deliveryDates: restaurant.role === ROLE_KITCHEN ? [] : getUpcomingDeliveryDates_()
   };
 }
 
@@ -455,7 +622,7 @@ function apiSubmitOrder_(restaurant, order) {
     address,
     JSON.stringify(lineItems),
     total,
-    'Sent',
+    STATUS_SENT,
     notes
   ]);
 
@@ -535,6 +702,122 @@ function sendOrderEmail_(data) {
     htmlBody: htmlBody,
     cc: data.restaurant.email,
     name: data.restaurant.name + ' - CKOA'
+  });
+}
+
+function invoiceHtml_(data) {
+  var config = getConfig_();
+  var o = data.order;
+
+  var rowsHtml = data.lines.map(function (li) {
+    var short = li.shortQty > 0;
+    return '<tr>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;color:#777;">' + li.orderedQty + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;' +
+        (short ? 'color:#c0392b;font-weight:bold;' : '') + '">' + li.qty + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;' +
+        (short ? 'color:#c0392b;' : 'color:#bbb;') + '">' + (short ? '-' + li.shortQty : '0') + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.unit) + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.price) + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.lineTotal) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  var shortNotice = data.shortfallCount
+    ? '<div style="margin:16px 0;padding:12px 14px;border-left:4px solid #c0392b;background:#fdf3f2;">' +
+      '<strong>' + data.shortfallCount + ' item(s) could not be supplied in full.</strong><br>' +
+      'This invoice bills the supplied quantities only. The Short column shows what was not delivered.' +
+      '</div>'
+    : '';
+
+  var noteHtml = data.kitchenNote
+    ? '<div style="margin:16px 0;padding:12px 14px;border-left:4px solid #8a5a00;background:#fbf2df;">' +
+      '<strong>Note from the kitchen</strong><br>' +
+      '<span style="white-space:pre-wrap;">' + escapeHtml_(data.kitchenNote) + '</span></div>'
+    : '';
+
+  var orderNoteHtml = o.notes
+    ? '<p style="color:#555;font-size:13px;"><strong>Restaurant\'s note on the order:</strong><br>' +
+      '<span style="white-space:pre-wrap;">' + escapeHtml_(o.notes) + '</span></p>'
+    : '';
+
+  return '<div style="font-family:Arial,sans-serif;font-size:13px;color:#222;max-width:720px;">' +
+    '<h2 style="margin:0 0 4px;">Invoice ' + escapeHtml_(data.invoiceRef) + '</h2>' +
+    '<p style="margin:0 0 18px;color:#666;">Issued ' + Utilities.formatDate(new Date(), getTimeZone_(), 'dd/MM/yyyy HH:mm') + '</p>' +
+    '<table style="width:100%;margin-bottom:18px;"><tr>' +
+    '<td style="vertical-align:top;width:50%;"><strong>From</strong><br>' + escapeHtml_(config.kitchenName) + '</td>' +
+    '<td style="vertical-align:top;"><strong>To</strong><br>' + escapeHtml_(o.restaurantName) + '<br>' +
+    escapeHtml_(o.deliveryAddress) + '</td>' +
+    '</tr></table>' +
+    '<p style="margin:0 0 14px;color:#555;">' +
+    'Order ref: ' + escapeHtml_(o.orderId) + '<br>' +
+    'Ordered by: ' + escapeHtml_(o.ordererName) + ' on ' + escapeHtml_(o.timestamp) + '<br>' +
+    'Delivery date: ' + escapeHtml_(o.deliveryDate) + '<br>' +
+    'Invoiced by: ' + escapeHtml_(data.issuedBy) +
+    '</p>' +
+    shortNotice +
+    '<table style="border-collapse:collapse;width:100%;">' +
+    '<thead><tr style="background:#f4f1ee;">' +
+    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333;">Item</th>' +
+    '<th style="text-align:center;padding:6px 8px;border-bottom:2px solid #333;">Ordered</th>' +
+    '<th style="text-align:center;padding:6px 8px;border-bottom:2px solid #333;">Supplied</th>' +
+    '<th style="text-align:center;padding:6px 8px;border-bottom:2px solid #333;">Short</th>' +
+    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333;">Unit</th>' +
+    '<th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333;">Price</th>' +
+    '<th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333;">Amount</th>' +
+    '</tr></thead><tbody>' + rowsHtml + '</tbody>' +
+    '<tfoot><tr><td colspan="6" style="padding:10px 8px;text-align:right;border-top:2px solid #333;">' +
+    '<strong>Total invoiced</strong></td>' +
+    '<td style="padding:10px 8px;text-align:right;border-top:2px solid #333;font-size:15px;">' +
+    '<strong>' + formatCurrency_(data.invoiceTotal) + '</strong></td></tr></tfoot>' +
+    '</table>' +
+    noteHtml +
+    orderNoteHtml +
+    '</div>';
+}
+
+function sendInvoiceEmail_(data) {
+  var config = getConfig_();
+  if (!config.invoiceEmail) {
+    throw new Error('No invoice recipient is set. Fill in InvoiceEmail (or CentralKitchenEmail) in the Settings tab.');
+  }
+
+  var o = data.order;
+  var subject = 'Invoice ' + data.invoiceRef + ' - ' + o.restaurantName + ' - delivery ' + o.deliveryDate +
+    (data.shortfallCount ? ' (short supply)' : '');
+
+  var textLines = [];
+  textLines.push('Invoice ' + data.invoiceRef);
+  textLines.push('Restaurant: ' + o.restaurantName);
+  textLines.push('Order ref: ' + o.orderId);
+  textLines.push('Delivery date: ' + o.deliveryDate);
+  textLines.push('');
+  if (data.shortfallCount) {
+    textLines.push(data.shortfallCount + ' item(s) could not be supplied in full. Billed on supplied quantities.');
+    textLines.push('');
+  }
+  data.lines.forEach(function (li) {
+    textLines.push('- ' + li.name + ': ordered ' + li.orderedQty + ', supplied ' + li.qty + ' ' + li.unit +
+      (li.shortQty > 0 ? ' (short ' + li.shortQty + ')' : '') + ' = ' + formatCurrency_(li.lineTotal));
+  });
+  textLines.push('');
+  textLines.push('Total invoiced: ' + formatCurrency_(data.invoiceTotal));
+  if (data.kitchenNote) {
+    textLines.push('');
+    textLines.push('Note from the kitchen: ' + data.kitchenNote);
+  }
+
+  var html = invoiceHtml_(data);
+  var pdf = Utilities.newBlob(html, 'text/html', data.invoiceRef + '.html')
+    .getAs('application/pdf')
+    .setName(data.invoiceRef + '.pdf');
+
+  GmailApp.sendEmail(config.invoiceEmail, subject, textLines.join('\n'), {
+    htmlBody: html,
+    cc: o.restaurantEmail,
+    name: config.kitchenName,
+    attachments: [pdf]
   });
 }
 
