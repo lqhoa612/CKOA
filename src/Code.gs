@@ -40,7 +40,10 @@ var UPCOMING_DELIVERY_COUNT = 2;
 var MAX_NOTES_LENGTH = 2000;
 var KITCHEN_QUEUE_SCAN_ROWS = 300; // how far back the kitchen queue looks
 
+var ADMIN_SCAN_ROWS = 500; // how far back the admin overview looks
+
 var ROLE_KITCHEN = 'kitchen';
+var ROLE_ADMIN = 'admin';
 var STATUS_SENT = 'Sent';
 var STATUS_INVOICED = 'Invoiced';
 
@@ -155,6 +158,7 @@ function submitOrder(order) { return callApi_('submitOrder', order); }
 function getMyOrders() { return callApi_('getMyOrders'); }
 function getKitchenOrders() { return callApi_('getKitchenOrders'); }
 function issueInvoice(payload) { return callApi_('issueInvoice', payload); }
+function getAdminOrders() { return callApi_('getAdminOrders'); }
 
 // ===========================================================================
 // API SIDE - runs as the admin, owns the spreadsheet and sends the email
@@ -184,6 +188,7 @@ function doPost(e) {
       case 'getMyOrders': data = apiMyOrders_(restaurant); break;
       case 'getKitchenOrders': data = apiKitchenOrders_(restaurant); break;
       case 'issueInvoice': data = apiIssueInvoice_(restaurant, body.data || {}); break;
+      case 'getAdminOrders': data = apiAdminOrders_(restaurant); break;
       default: return jsonOutput_({ ok: false, message: 'Unknown action.' });
     }
     return jsonOutput_({ ok: true, data: data });
@@ -533,15 +538,53 @@ function apiIssueInvoice_(user, payload) {
   return { ok: true, invoiceRef: invoiceRef, invoiceTotal: invoiceTotal, shortfallCount: shortfallCount };
 }
 
+// ---------------------------------------------------------------------------
+// Admin: read-only view across every restaurant and every invoice
+// ---------------------------------------------------------------------------
+
+function requireAdmin_(user) {
+  if (user.role !== ROLE_ADMIN) {
+    throw new Error('This screen is for administrators only.');
+  }
+}
+
+function apiAdminOrders_(user) {
+  requireAdmin_(user);
+
+  var rows = sheetRowsAsObjects_(getSheet_(SHEET_NAMES.ORDERS));
+  var orders = rows.slice(-ADMIN_SCAN_ROWS).map(orderRowToObject_);
+  orders.sort(function (a, b) { return (b.orderId || '').localeCompare(a.orderId || ''); });
+
+  var names = {};
+  var pending = 0;
+  var invoicedTotal = 0;
+  orders.forEach(function (o) {
+    if (o.restaurantName) names[o.restaurantName] = true;
+    if (String(o.status) === STATUS_INVOICED) invoicedTotal += Number(o.invoiceTotal) || 0;
+    else pending++;
+  });
+
+  return {
+    orders: orders,
+    restaurants: Object.keys(names).sort(),
+    summary: {
+      orderCount: orders.length,
+      pendingCount: pending,
+      invoicedCount: orders.length - pending,
+      invoicedTotal: invoicedTotal
+    }
+  };
+}
+
 function apiOrderPageData_(restaurant) {
   return {
     appTitle: getConfig_().appTitle,
     logoUrl: getConfig_().logoUrl,
     restaurant: restaurant,
     role: restaurant.role,
-    // Kitchen staff do not order, so skip the catalogue work for them.
-    items: restaurant.role === ROLE_KITCHEN ? [] : getActiveItems_(),
-    deliveryDates: restaurant.role === ROLE_KITCHEN ? [] : getUpcomingDeliveryDates_()
+    // Kitchen and admin accounts do not order, so skip the catalogue work.
+    items: restaurant.role ? [] : getActiveItems_(),
+    deliveryDates: restaurant.role ? [] : getUpcomingDeliveryDates_()
   };
 }
 

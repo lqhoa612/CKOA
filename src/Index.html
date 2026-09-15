@@ -31,6 +31,8 @@
         <button id="nav-history" class="nav-btn">My orders</button>
         <button id="nav-kitchen" class="nav-btn hidden">To fulfil</button>
         <button id="nav-invoiced" class="nav-btn hidden">Invoiced</button>
+        <button id="nav-admin" class="nav-btn hidden">All orders</button>
+        <button id="nav-admin-invoices" class="nav-btn hidden">Invoices</button>
       </nav>
     </header>
 
@@ -52,6 +54,25 @@
     <!-- Central kitchen: invoices already issued -->
     <main id="invoiced-view" class="hidden">
       <div id="invoiced-list"></div>
+    </main>
+
+    <!-- Admin: every order across every restaurant -->
+    <main id="admin-view" class="hidden">
+      <div id="admin-summary" class="summary-row"></div>
+      <div class="filter-bar">
+        <select id="admin-restaurant-filter" aria-label="Filter by restaurant"></select>
+        <select id="admin-status-filter" aria-label="Filter by status">
+          <option value="">All statuses</option>
+          <option value="Sent">Awaiting kitchen</option>
+          <option value="Invoiced">Invoiced</option>
+        </select>
+      </div>
+      <div id="admin-list"></div>
+    </main>
+
+    <!-- Admin: every invoice issued by the kitchen -->
+    <main id="admin-invoices-view" class="hidden">
+      <div id="admin-invoices-list"></div>
     </main>
 
     <!-- Cart bar -->
