@@ -29,7 +29,10 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 - **Google Drive**: upload ảnh → chuột phải → **Share** → đổi thành **Anyone with the link** → copy link, lấy đoạn `FILE_ID` ở giữa, rồi điền vào ô:
   `https://drive.google.com/thumbnail?id=FILE_ID&sz=w360`
   (dùng dạng `thumbnail` này, dạng `uc?export=view` hay bị Google chặn khi nhúng)
-- **GitHub**: nếu repo của bạn ở chế độ public, upload ảnh vào repo rồi dùng link `raw.githubusercontent.com`.
+- **GitHub** (đang dùng): logo Saigon Express đã nằm sẵn trong repo tại `assets/logo.png`, điền vào ô `LogoUrl`:
+  `https://raw.githubusercontent.com/lqhoa612/CKOA/main/assets/logo.png`
+
+Nếu sau này đổi logo, nhớ **cắt sát viền trắng và thu nhỏ trước khi upload**. File gốc lúc đầu là 8334 × 8334 pixel nặng 771KB, trong đó 86% diện tích chỉ là nền trắng — trình duyệt phải giải nén thành khoảng 278MB trong RAM chỉ để vẽ ra một hình cao 34px, đủ làm giật máy điện thoại yếu. Bản đang dùng là 360 × 109 pixel, 35KB.
 
 **Kích thước ảnh nên dùng:**
 
