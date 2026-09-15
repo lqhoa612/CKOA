@@ -77,6 +77,7 @@ App chỉ hiển thị những ngày giao còn trong hạn, và kiểm tra lại
 | hobartcbd@example.com | Hobart CBD | Minh Nguyen | 45 Elizabeth St, Hobart TAS 7000 | TRUE | |
 | sandybay@example.com | Sandy Bay | Lan Tran | 12 King St, Sandy Bay TAS 7005 | TRUE | |
 | kitchen.manager@example.com | Central Kitchen | Hoa Le | | TRUE | kitchen |
+| owner@example.com | Head Office | Jimmy Le | | TRUE | admin |
 
 Mỗi dòng là một tài khoản Google được phép đăng nhập + tên nhà hàng sẽ hiện trên đơn/email. Đặt `Active` = `FALSE` để tạm khoá một nhà hàng mà không cần xoá dòng.
 
@@ -85,9 +86,12 @@ Cột **`Role`** quyết định người đó thấy màn hình nào:
 | `Role` | Thấy gì |
 |---|---|
 | để trống | Màn hình đặt hàng bình thường (nhà hàng) |
-| `kitchen` | Màn hình bếp trung tâm: danh sách đơn cần xử lý và xuất invoice |
+| `kitchen` | Bếp trung tâm: danh sách đơn cần xử lý, ghi số thực giao, xuất invoice |
+| `admin` | Xem tất cả: mọi đơn của mọi nhà hàng và mọi invoice. **Chỉ đọc** |
 
-Tài khoản `kitchen` **không đặt hàng được**, và ngược lại nhà hàng không vào được màn hình của bếp. Dòng `kitchen` không cần điền `DeliveryAddress`.
+Mỗi vai trò chỉ thấy màn hình của mình. Tài khoản `kitchen` và `admin` **không đặt hàng được**; nhà hàng không vào được màn hình của bếp hay của admin. Việc chặn nằm ở phía server chứ không chỉ ẩn nút, nên không lách được bằng cách can thiệp trình duyệt.
+
+Dòng `kitchen` và `admin` không cần điền `DeliveryAddress`.
 
 ### Nhà hàng dùng email công ty / Outlook thì sao?
 
@@ -258,6 +262,21 @@ Bếp không phải lúc nào cũng đáp ứng đủ đơn. Thay vì giao thi�
 - Một đơn chỉ xuất invoice được **một lần**; mở lại sẽ báo đã xuất rồi kèm mã invoice cũ
 - Nếu gửi email lỗi thì Sheet không bị ghi, tránh tình trạng hệ thống báo đã xuất mà kế toán không nhận được gì
 - Giá lấy từ lúc đặt hàng (đã lưu trong `ItemsJSON`), nên sửa giá trong tab `Items` về sau không làm sai lệch đơn cũ
+
+## Màn hình admin
+
+Tài khoản có `Role` = `admin` thấy hai tab, **chỉ đọc, không sửa được gì**:
+
+**Tab "All orders"** — mọi đơn của mọi nhà hàng, mới nhất trước.
+
+- Bốn ô thống kê ở đầu: tổng số đơn, số đơn chờ bếp, số đơn đã xuất invoice, tổng giá trị đã xuất
+- Hai bộ lọc: theo nhà hàng và theo trạng thái
+- Bấm **Show items** ở từng đơn để xem chi tiết từng món. Đơn chưa xử lý hiện số đã đặt; đơn đã xuất invoice hiện cả **Ordered và Supplied** cạnh nhau, phần giao thiếu tô đỏ
+- Kèm ghi chú của nhà hàng và ghi chú của bếp
+
+**Tab "Invoices"** — mọi invoice đã xuất, kèm mã invoice, số tiền, và danh sách món giao thiếu nếu có.
+
+Màn hình này đọc 500 dòng gần nhất của tab `Orders`. Cần xem xa hơn thì mở thẳng Google Sheet.
 
 ## Quản lý vận hành
 
