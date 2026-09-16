@@ -71,7 +71,58 @@
     var el = document.getElementById('startup-error');
     el.textContent = msg;
     el.classList.remove('hidden');
+
+    // Signing in with the wrong account lands here and never reaches the app,
+    // so the way out has to be on this screen rather than behind the nav.
+    var panel = document.getElementById('startup-account');
+    panel.innerHTML = accountPanelHtml();
+    panel.classList.remove('hidden');
   }
+
+  // ---------------------------------------------------------------------
+  // Account: the app has no session of its own, Google owns the sign-in.
+  // The way to "log out" is to switch Google account or sign out of Google.
+  // ---------------------------------------------------------------------
+
+  /** Same panel on the error screen and in the in-app Account dialog. */
+  function accountPanelHtml() {
+    var email = (window.CKOA_SIGNED_IN_EMAIL || '').trim();
+    var appUrl = (window.CKOA_APP_URL || '').trim();
+    var html = '';
+
+    html += '<p class="account-line">Signed in as<br><strong>' +
+      escapeHtml(email || 'an unknown Google account') + '</strong></p>';
+
+    if (appUrl) {
+      // Google numbers the accounts you are signed into: /u/0/ is the first,
+      // /u/1/ the second and so on. Opening the app under another number is
+      // the quickest way onto the right account without signing out anywhere.
+      var base = appUrl.replace(/\/u\/\d+\//, '/');
+      var links = [0, 1, 2, 3].map(function (n) {
+        var url = base.replace('://script.google.com/', '://script.google.com/u/' + n + '/');
+        return '<a class="account-link" href="' + escapeHtml(url) + '" target="_top">Open as account ' + (n + 1) + '</a>';
+      }).join('');
+      html += '<p class="field-label" style="margin-top:18px;">Signed into more than one Google account?</p>' +
+        '<div class="account-links">' + links + '</div>' +
+        '<p class="muted small">Pick the number that matches the account you want. Account 1 is the one you signed into first on this device.</p>';
+    }
+
+    html += '<p class="field-label" style="margin-top:18px;">Or sign out completely</p>' +
+      '<a class="account-link danger" href="https://accounts.google.com/Logout" target="_top">Sign out of Google</a>' +
+      '<p class="muted small">This signs you out of Gmail and every other Google service on this device, ' +
+      'not just this app. Afterwards, open the app link again and sign in with the right account.</p>';
+
+    return html;
+  }
+
+  document.getElementById('nav-account').addEventListener('click', function () {
+    document.getElementById('account-body').innerHTML = accountPanelHtml();
+    document.getElementById('account-modal').classList.remove('hidden');
+  });
+
+  document.getElementById('close-account').addEventListener('click', function () {
+    document.getElementById('account-modal').classList.add('hidden');
+  });
 
   // ---------------------------------------------------------------------
   // Catalogue

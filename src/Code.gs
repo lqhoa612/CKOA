@@ -71,6 +71,14 @@ function doGet(e) {
 
   var template = HtmlService.createTemplateFromFile('Index');
   template.appTitle = 'Central Kitchen Ordering';
+  // Needed so the page can offer "switch account" even when sign-in lands on
+  // an unregistered address and the app itself never loads.
+  template.signedInEmail = active || effective || '';
+  try {
+    template.appUrl = ScriptApp.getService().getUrl() || '';
+  } catch (err) {
+    template.appUrl = '';
+  }
   return template
     .evaluate()
     .setTitle('Central Kitchen Ordering')

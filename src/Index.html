@@ -13,6 +13,7 @@
       <h1><?= appTitle ?></h1>
       <p class="muted" id="startup-message">Loading your order page&hellip;</p>
       <p id="startup-error" class="error hidden"></p>
+      <div id="startup-account" class="hidden"></div>
     </div>
   </section>
 
@@ -33,6 +34,7 @@
         <button id="nav-invoiced" class="nav-btn hidden">Invoiced</button>
         <button id="nav-admin" class="nav-btn hidden">All orders</button>
         <button id="nav-admin-invoices" class="nav-btn hidden">Invoices</button>
+        <button id="nav-account" class="nav-btn ghost">Account</button>
       </nav>
     </header>
 
@@ -128,8 +130,24 @@
     </div>
   </div>
 
+  <!-- Account / switch user -->
+  <div id="account-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Account</h2>
+        <button id="close-account" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+      <div id="account-body"></div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
+
+  <script>
+    var CKOA_SIGNED_IN_EMAIL = <?!= JSON.stringify(signedInEmail) ?>;
+    var CKOA_APP_URL = <?!= JSON.stringify(appUrl) ?>;
+  </script>
 
   <?!= include('JavaScript'); ?>
 </body>

@@ -109,6 +109,22 @@ Sau đó điền đúng địa chỉ công ty đó vào cột `Email` của tab 
 
 **Lưu ý khi đăng nhập**: trên máy đang đăng nhập sẵn một tài khoản Google khác, họ phải bấm chuyển tài khoản khi mở link app, nếu không Google sẽ dùng tài khoản đang đăng nhập và app báo chưa được đăng ký.
 
+### Đăng nhập nhầm email thì làm sao
+
+App **không tự quản lý phiên đăng nhập** — Google làm việc đó, nên không có nút "đăng xuất" theo nghĩa thông thường. Thay vào đó app có mục **Account**:
+
+- Trong app: nút **Account** ở thanh trên cùng
+- Đăng nhập nhầm nên bị chặn ở màn hình lỗi: panel này hiện luôn ngay dưới thông báo lỗi, không cần vào được app mới thấy
+
+Panel đó cho hai cách:
+
+| Cách | Khi nào dùng |
+|---|---|
+| **Open as account 1/2/3/4** | Máy đang đăng nhập nhiều tài khoản Google cùng lúc. Bấm số tương ứng là mở app dưới tài khoản đó, không phải đăng xuất gì cả |
+| **Sign out of Google** | Chỉ có một tài khoản, hoặc muốn dứt điểm. Lưu ý cách này đăng xuất khỏi **toàn bộ** dịch vụ Google trên máy đó, kể cả Gmail |
+
+Cách thứ nhất nhanh hơn hẳn và nên thử trước. "Account 1" là tài khoản đăng nhập đầu tiên trên máy đó, "Account 2" là tài khoản thứ hai, và cứ thế.
+
 `OrdererName` là tên người đặt gắn với email đó — hiện ở phần ký tên cuối email đơn hàng và ghi vào tab `Orders`. Người đặt **không phải gõ tên** mỗi lần đặt nữa; app tự lấy từ cột này. Để trống thì app dùng tạm địa chỉ email, nên nhớ điền cho từng nhà hàng.
 
 ### Tab `Items`
