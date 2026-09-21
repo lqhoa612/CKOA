@@ -120,10 +120,12 @@ Panel đó cho hai cách:
 
 | Cách | Khi nào dùng |
 |---|---|
-| **Open as account 1/2/3/4** | Máy đang đăng nhập nhiều tài khoản Google cùng lúc. Bấm số tương ứng là mở app dưới tài khoản đó, không phải đăng xuất gì cả |
-| **Sign out of Google** | Chỉ có một tài khoản, hoặc muốn dứt điểm. Lưu ý cách này đăng xuất khỏi **toàn bộ** dịch vụ Google trên máy đó, kể cả Gmail |
+| **Sign out of Google** | Dứt điểm nhất. Đăng xuất xong mở lại link app và đăng nhập đúng tài khoản. Lưu ý cách này đăng xuất khỏi **toàn bộ** dịch vụ Google trên máy đó, kể cả Gmail |
+| **Cửa sổ ẩn danh** | Giữ nguyên tài khoản đang đăng nhập. Mở cửa sổ ẩn danh, dán link app (panel hiện sẵn link để copy), đăng nhập tài khoản cần dùng |
 
-Cách thứ nhất nhanh hơn hẳn và nên thử trước. "Account 1" là tài khoản đăng nhập đầu tiên trên máy đó, "Account 2" là tài khoản thứ hai, và cứ thế.
+Cách thứ hai tiện khi máy dùng chung, hoặc khi một người vừa có tài khoản nhà hàng vừa có tài khoản quản lý.
+
+> **Không có cách chọn tài khoản bằng URL.** Với web app của Apps Script, thêm tiền tố `/u/1/` vào URL không chạy — Drive sẽ nhận nhầm và báo *"Sorry, unable to open the file at present"*. Đây là giới hạn của Apps Script, không phải lỗi cấu hình.
 
 `OrdererName` là tên người đặt gắn với email đó — hiện ở phần ký tên cuối email đơn hàng và ghi vào tab `Orders`. Người đặt **không phải gõ tên** mỗi lần đặt nữa; app tự lấy từ cột này. Để trống thì app dùng tạm địa chỉ email, nên nhớ điền cho từng nhà hàng.
 

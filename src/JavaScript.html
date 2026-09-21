@@ -84,33 +84,29 @@
   // The way to "log out" is to switch Google account or sign out of Google.
   // ---------------------------------------------------------------------
 
-  /** Same panel on the error screen and in the in-app Account dialog. */
+  /**
+   * Same panel on the error screen and in the in-app Account dialog.
+   * Only offers routes that are known to work: Google owns the session, and
+   * a published Apps Script web app has no URL that selects an account.
+   */
   function accountPanelHtml() {
     var email = (window.CKOA_SIGNED_IN_EMAIL || '').trim();
     var appUrl = (window.CKOA_APP_URL || '').trim();
-    var html = '';
 
-    html += '<p class="account-line">Signed in as<br><strong>' +
+    var html = '<p class="account-line">Signed in as<br><strong>' +
       escapeHtml(email || 'an unknown Google account') + '</strong></p>';
 
-    if (appUrl) {
-      // Google numbers the accounts you are signed into: /u/0/ is the first,
-      // /u/1/ the second and so on. Opening the app under another number is
-      // the quickest way onto the right account without signing out anywhere.
-      var base = appUrl.replace(/\/u\/\d+\//, '/');
-      var links = [0, 1, 2, 3].map(function (n) {
-        var url = base.replace('://script.google.com/', '://script.google.com/u/' + n + '/');
-        return '<a class="account-link" href="' + escapeHtml(url) + '" target="_top">Open as account ' + (n + 1) + '</a>';
-      }).join('');
-      html += '<p class="field-label" style="margin-top:18px;">Signed into more than one Google account?</p>' +
-        '<div class="account-links">' + links + '</div>' +
-        '<p class="muted small">Pick the number that matches the account you want. Account 1 is the one you signed into first on this device.</p>';
-    }
-
-    html += '<p class="field-label" style="margin-top:18px;">Or sign out completely</p>' +
+    html += '<p class="field-label" style="margin-top:18px;">Wrong account?</p>' +
       '<a class="account-link danger" href="https://accounts.google.com/Logout" target="_top">Sign out of Google</a>' +
-      '<p class="muted small">This signs you out of Gmail and every other Google service on this device, ' +
-      'not just this app. Afterwards, open the app link again and sign in with the right account.</p>';
+      '<p class="muted small">Then open the app link again and sign in with the right account. ' +
+      'Note this signs you out of Gmail and every other Google service on this device, not just this app.</p>';
+
+    html += '<p class="field-label" style="margin-top:18px;">Keep this account signed in</p>' +
+      '<p class="muted small">To use a different account without signing out here, open a private ' +
+      '(incognito) browser window and paste the app link into it:</p>' +
+      (appUrl ? '<div class="url-box">' + escapeHtml(appUrl) + '</div>' : '') +
+      '<p class="muted small">Useful on a shared device, or when one person needs both a restaurant ' +
+      'account and a manager account.</p>';
 
     return html;
   }
