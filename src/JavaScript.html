@@ -149,11 +149,13 @@
           '<div class="item-card" data-id="' + item.id + '">' +
           '<div class="item-info">' +
           '<div class="item-name">' + escapeHtml(item.name) + '</div>' +
-          '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) + '</div>' +
+          '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) +
+          (item.step < 1 ? ' &middot; in steps of ' + formatQty(item.step) : '') + '</div>' +
           '</div>' +
           '<div class="qty-control">' +
           '<button class="qty-btn qty-minus' + (qty > 0 ? ' primary' : '') + '" aria-label="Decrease quantity">-</button>' +
-          '<span class="qty-value">' + qty + '</span>' +
+          '<input class="qty-input" type="number" inputmode="decimal" min="0" ' +
+          'step="' + item.step + '" value="' + formatQty(qty) + '" aria-label="Quantity">' +
           '<button class="qty-btn primary qty-plus" aria-label="Increase quantity">+</button>' +
           '</div></div>';
       });
@@ -163,17 +165,48 @@
 
     container.querySelectorAll('.item-card').forEach(function (card) {
       var id = card.getAttribute('data-id');
-      card.querySelector('.qty-plus').addEventListener('click', function () { changeQty(id, 1); });
-      card.querySelector('.qty-minus').addEventListener('click', function () { changeQty(id, -1); });
+      var input = card.querySelector('.qty-input');
+
+      card.querySelector('.qty-plus').addEventListener('click', function () { stepQty(card, id, 1); });
+      card.querySelector('.qty-minus').addEventListener('click', function () { stepQty(card, id, -1); });
+
+      // Typing must not trigger a re-render: that would rebuild the field and
+      // throw away the cursor mid-entry.
+      input.addEventListener('input', function () {
+        setQty(id, input.value);
+        refreshCard(card, id);
+      });
+      // Tidy the displayed value only once they have finished with the field.
+      input.addEventListener('change', function () {
+        input.value = formatQty(setQty(id, input.value));
+      });
     });
   }
 
-  function changeQty(id, delta) {
-    var current = state.cart[id] || 0;
-    var next = Math.max(0, current + delta);
-    if (next === 0) delete state.cart[id];
-    else state.cart[id] = next;
-    renderCatalog();
+  function itemById(id) {
+    return state.items.filter(function (i) { return i.id === id; })[0];
+  }
+
+  /** Writes a quantity into the cart, snapped to the item's step. */
+  function setQty(id, value) {
+    var item = itemById(id);
+    var step = (item && item.step) || 1;
+    var qty = roundToStep(Math.max(0, Number(value) || 0), step);
+    if (qty > 0) state.cart[id] = qty;
+    else delete state.cart[id];
+    return qty;
+  }
+
+  function stepQty(card, id, direction) {
+    var item = itemById(id);
+    var step = (item && item.step) || 1;
+    var next = setQty(id, (state.cart[id] || 0) + direction * step);
+    card.querySelector('.qty-input').value = formatQty(next);
+    refreshCard(card, id);
+  }
+
+  function refreshCard(card, id) {
+    card.querySelector('.qty-minus').classList.toggle('primary', (state.cart[id] || 0) > 0);
     renderCartBar();
   }
 
@@ -194,8 +227,7 @@
     var bar = document.getElementById('cart-bar');
     if (!lines.length) { bar.classList.add('hidden'); return; }
     bar.classList.remove('hidden');
-    var count = lines.reduce(function (s, l) { return s + l.qty; }, 0);
-    document.getElementById('cart-count').textContent = count;
+    document.getElementById('cart-count').textContent = itemCountLabel(lines.length);
     document.getElementById('cart-total').textContent = formatCurrency(cartTotal());
   }
 
@@ -213,7 +245,7 @@
     var itemsHtml = lines.map(function (l) {
       return '<tr>' +
         '<td>' + escapeHtml(l.name) + '</td>' +
-        '<td class="num">' + l.qty + '</td>' +
+        '<td class="num">' + formatQty(l.qty) + '</td>' +
         '<td>' + escapeHtml(l.unit) + '</td>' +
         '<td class="num">' + formatCurrency(l.price * l.qty) + '</td>' +
         '</tr>';
@@ -344,7 +376,7 @@
       return;
     }
     container.innerHTML = orders.map(function (o) {
-      var itemsSummary = o.items.map(function (i) { return i.name + ' x' + i.qty; }).join(', ');
+      var itemsSummary = o.items.map(function (i) { return i.name + ' x' + formatQty(i.qty); }).join(', ');
       return (
         '<div class="order-card">' +
         '<div class="order-top"><span>' + escapeHtml(o.orderId) + '</span><span>' + formatCurrency(o.total) + '</span></div>' +
@@ -387,12 +419,12 @@
 
     container.innerHTML = orders.map(function (o) {
       var isOpen = o.orderId === state.openOrderId;
-      var itemCount = o.items.reduce(function (s, i) { return s + i.qty; }, 0);
+      var itemCount = o.items.length;
       return '<div class="order-card kitchen-card" data-order="' + escapeHtml(o.orderId) + '">' +
         '<div class="order-top"><span>' + escapeHtml(o.restaurantName) + '</span>' +
         '<span class="muted small">' + escapeHtml(o.orderId) + '</span></div>' +
         '<div class="order-items">Delivery: ' + escapeHtml(o.deliveryDate) +
-        ' &middot; ' + itemCount + ' items &middot; ordered by ' + escapeHtml(o.ordererName) + '</div>' +
+        ' &middot; ' + itemCountLabel(itemCount) + ' &middot; ordered by ' + escapeHtml(o.ordererName) + '</div>' +
         (o.notes ? '<div class="order-note">Note: ' + escapeHtml(o.notes) + '</div>' : '') +
         (isOpen ? fulfilFormHtml(o) : '<button class="secondary-btn open-order-btn">Fulfil this order</button>') +
         '</div>';
@@ -405,9 +437,10 @@
     var rows = o.items.map(function (li) {
       return '<tr>' +
         '<td>' + escapeHtml(li.name) + '</td>' +
-        '<td class="num">' + li.qty + '</td>' +
+        '<td class="num">' + formatQty(li.qty) + '</td>' +
         '<td><input type="number" class="supplied-input" data-id="' + escapeHtml(li.id) + '" ' +
-        'value="' + li.qty + '" min="0" max="' + li.qty + '" step="any" inputmode="decimal"></td>' +
+        'data-step="' + (li.step || 1) + '" value="' + formatQty(li.qty) + '" min="0" ' +
+        'max="' + li.qty + '" step="' + (li.step || 1) + '" inputmode="decimal"></td>' +
         '<td>' + escapeHtml(li.unit) + '</td>' +
         '</tr>';
     }).join('');
@@ -449,7 +482,7 @@
     container.querySelectorAll('.supply-all-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         btn.closest('.kitchen-card').querySelectorAll('.supplied-input').forEach(function (input) {
-          input.value = input.getAttribute('max');
+          input.value = formatQty(input.getAttribute('max'));
         });
       });
     });
@@ -477,7 +510,8 @@
     var shortCount = 0;
     card.querySelectorAll('.supplied-input').forEach(function (input) {
       var ordered = Number(input.getAttribute('max')) || 0;
-      var qty = Math.min(Math.max(0, Number(input.value) || 0), ordered);
+      var step = Number(input.getAttribute('data-step')) || 1;
+      var qty = roundToStep(Math.min(Math.max(0, Number(input.value) || 0), ordered), step);
       if (qty < ordered) shortCount++;
       supplied.push({ id: input.getAttribute('data-id'), qty: qty });
     });
@@ -646,15 +680,15 @@
         var short = li.shortQty > 0;
         return '<tr>' +
           '<td>' + escapeHtml(li.name) + '</td>' +
-          '<td class="num muted">' + li.orderedQty + '</td>' +
-          '<td class="num' + (short ? ' short' : '') + '">' + li.qty + '</td>' +
+          '<td class="num muted">' + formatQty(li.orderedQty) + '</td>' +
+          '<td class="num' + (short ? ' short' : '') + '">' + formatQty(li.qty) + '</td>' +
           '<td>' + escapeHtml(li.unit) + '</td>' +
           '<td class="num">' + formatCurrency(li.lineTotal) + '</td>' +
           '</tr>';
       }
       return '<tr>' +
         '<td>' + escapeHtml(li.name) + '</td>' +
-        '<td class="num">' + li.qty + '</td>' +
+        '<td class="num">' + formatQty(li.qty) + '</td>' +
         '<td>' + escapeHtml(li.unit) + '</td>' +
         '<td class="num">' + formatCurrency(li.lineTotal) + '</td>' +
         '</tr>';
@@ -703,6 +737,34 @@
   // ---------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------
+
+  /** How many decimals a step implies: 0.1 -> 1, 0.25 -> 2, 1 -> 0. Matches Code.gs. */
+  function decimalsForStep(step) {
+    var text = String(step);
+    var dot = text.indexOf('.');
+    return dot === -1 ? 0 : Math.min(3, text.length - dot - 1);
+  }
+
+  /**
+   * Adding 0.1 three times lands on 0.30000000000000004. Snap the running total
+   * back to the item's own precision so the screen never shows that.
+   */
+  function roundToStep(qty, step) {
+    var factor = Math.pow(10, decimalsForStep(step));
+    return Math.round((Number(qty) || 0) * factor) / factor;
+  }
+
+  /** "1 item" / "3 items" - a count of lines, never a sum of split quantities. */
+  function itemCountLabel(n) {
+    return n + (n === 1 ? ' item' : ' items');
+  }
+
+  /** A quantity without trailing zeros: 2 -> "2", 0.5 -> "0.5", 1.50 -> "1.5". */
+  function formatQty(n) {
+    var num = Number(n);
+    if (isNaN(num)) num = 0;
+    return String(Math.round(num * 1000) / 1000);
+  }
 
   /** Australian dollars, e.g. 1234.5 -> "$1,234.50". Matches Code.gs. */
   function formatCurrency(n) {

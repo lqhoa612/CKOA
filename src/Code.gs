@@ -267,6 +267,29 @@ function parseAmount_(value) {
   return isNaN(n) ? 0 : n;
 }
 
+/** Order step for an item: 1 unless the sheet says otherwise. */
+function parseStep_(value) {
+  var n = parseAmount_(value);
+  return n > 0 ? n : 1;
+}
+
+/** How many decimals a step implies: 0.1 -> 1, 0.25 -> 2, 1 -> 0. */
+function decimalsForStep_(step) {
+  var text = String(step);
+  var dot = text.indexOf('.');
+  return dot === -1 ? 0 : Math.min(3, text.length - dot - 1);
+}
+
+/**
+ * Quantities are added up in floating point, where 0.1 + 0.2 lands on
+ * 0.30000000000000004. Snap back to the item's own precision so neither the
+ * sheet nor the invoice shows that.
+ */
+function roundToStep_(qty, step) {
+  var factor = Math.pow(10, decimalsForStep_(step));
+  return Math.round((Number(qty) || 0) * factor) / factor;
+}
+
 function numberOr_(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
   var n = Number(value);
@@ -348,7 +371,10 @@ function getActiveItems_() {
       category: r.Category || 'Other',
       name: r.Name,
       unit: r.Unit || '',
-      price: parseAmount_(r.Price)
+      price: parseAmount_(r.Price),
+      // Smallest orderable amount. 1 for whole units, 0.1 for things weighed
+      // out by the bag. Blank means whole units.
+      step: parseStep_(r.Step)
     });
   }
   return items;
@@ -502,9 +528,11 @@ function apiIssueInvoice_(user, payload) {
   var shortfallCount = 0;
   ordered.forEach(function (li) {
     // Unlisted item means nothing was supplied, not "supply everything".
+    var step = li.step || 1;
     var suppliedQty = suppliedById.hasOwnProperty(String(li.id)) ? suppliedById[String(li.id)] : 0;
+    suppliedQty = roundToStep_(suppliedQty, step);
     if (suppliedQty > li.qty) suppliedQty = li.qty; // cannot bill more than ordered
-    var lineTotal = (Number(li.price) || 0) * suppliedQty;
+    var lineTotal = roundToStep_((Number(li.price) || 0) * suppliedQty, 0.01);
     invoiceTotal += lineTotal;
     if (suppliedQty < li.qty) shortfallCount++;
     lines.push({
@@ -512,9 +540,10 @@ function apiIssueInvoice_(user, payload) {
       name: li.name,
       unit: li.unit,
       price: li.price,
+      step: step,
       orderedQty: li.qty,
       qty: suppliedQty,
-      shortQty: li.qty - suppliedQty,
+      shortQty: roundToStep_(li.qty - suppliedQty, step),
       lineTotal: lineTotal
     });
   });
@@ -628,15 +657,18 @@ function apiSubmitOrder_(restaurant, order) {
   var total = 0;
   order.items.forEach(function (line) {
     var product = catalogue[line.id];
-    var qty = Number(line.qty) || 0;
-    if (!product || qty <= 0) return;
-    var lineTotal = product.price * qty;
+    if (!product) return;
+    var qty = roundToStep_(line.qty, product.step);
+    if (qty <= 0) return;
+    var lineTotal = roundToStep_(product.price * qty, 0.01);
     total += lineTotal;
     lineItems.push({
       id: product.id,
       name: product.name,
       unit: product.unit,
       price: product.price,
+      // Carried along so the kitchen screen knows how finely this item splits.
+      step: product.step,
       qty: qty,
       lineTotal: lineTotal
     });
@@ -696,7 +728,7 @@ function sendOrderEmail_(data) {
   textLines.push('');
   textLines.push('Items:');
   data.lineItems.forEach(function (li) {
-    textLines.push('- ' + li.name + ' x' + li.qty + ' ' + li.unit + ' = ' + formatCurrency_(li.lineTotal));
+    textLines.push('- ' + li.name + ' x' + formatQty_(li.qty) + ' ' + li.unit + ' = ' + formatCurrency_(li.lineTotal));
   });
   textLines.push('');
   textLines.push('Total: ' + formatCurrency_(data.total));
@@ -717,7 +749,7 @@ function sendOrderEmail_(data) {
       return (
         '<tr>' +
         '<td style="padding:4px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) + '</td>' +
-        '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center;">' + li.qty + ' ' + escapeHtml_(li.unit) + '</td>' +
+        '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center;">' + formatQty_(li.qty) + ' ' + escapeHtml_(li.unit) + '</td>' +
         '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.lineTotal) + '</td>' +
         '</tr>'
       );
@@ -764,11 +796,11 @@ function invoiceHtml_(data) {
     var short = li.shortQty > 0;
     return '<tr>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) + '</td>' +
-      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;color:#777;">' + li.orderedQty + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;color:#777;">' + formatQty_(li.orderedQty) + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;' +
-        (short ? 'color:#c0392b;font-weight:bold;' : '') + '">' + li.qty + '</td>' +
+        (short ? 'color:#c0392b;font-weight:bold;' : '') + '">' + formatQty_(li.qty) + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;' +
-        (short ? 'color:#c0392b;' : 'color:#bbb;') + '">' + (short ? '-' + li.shortQty : '0') + '</td>' +
+        (short ? 'color:#c0392b;' : 'color:#bbb;') + '">' + (short ? '-' + formatQty_(li.shortQty) : '0') + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.unit) + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.price) + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.lineTotal) + '</td>' +
@@ -849,8 +881,9 @@ function sendInvoiceEmail_(data) {
     textLines.push('');
   }
   data.lines.forEach(function (li) {
-    textLines.push('- ' + li.name + ': ordered ' + li.orderedQty + ', supplied ' + li.qty + ' ' + li.unit +
-      (li.shortQty > 0 ? ' (short ' + li.shortQty + ')' : '') + ' = ' + formatCurrency_(li.lineTotal));
+    textLines.push('- ' + li.name + ': ordered ' + formatQty_(li.orderedQty) +
+      ', supplied ' + formatQty_(li.qty) + ' ' + li.unit +
+      (li.shortQty > 0 ? ' (short ' + formatQty_(li.shortQty) + ')' : '') + ' = ' + formatCurrency_(li.lineTotal));
   });
   textLines.push('');
   textLines.push('Total invoiced: ' + formatCurrency_(data.invoiceTotal));
@@ -879,6 +912,13 @@ function formatCurrency_(n) {
   var parts = Math.abs(num).toFixed(2).split('.');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return (num < 0 ? '-$' : '$') + parts.join('.');
+}
+
+/** A quantity without trailing zeros: 2 -> "2", 0.5 -> "0.5", 1.50 -> "1.5". */
+function formatQty_(n) {
+  var num = Number(n);
+  if (isNaN(num)) num = 0;
+  return String(Math.round(num * 1000) / 1000);
 }
 
 /** 16 -> "4pm", 9 -> "9am", 0 -> "12am". */

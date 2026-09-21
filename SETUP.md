@@ -131,13 +131,20 @@ Cách thứ hai tiện khi máy dùng chung, hoặc khi một người vừa có
 
 ### Tab `Items`
 
-| ID | Category | Name | Unit | Price | Active |
-|---|---|---|---|---|---|
-| | Prepped Vegetables | Julienned carrots | kg | 8.50 | TRUE |
-| | Prepped Meat | Pork mince | kg | 14.90 | TRUE |
-| | Sauces & Stocks | Tomato sauce base | L | 9.00 | TRUE |
+| ID | Category | Name | Unit | Price | Step | Active |
+|---|---|---|---|---|---|---|
+| | Prepped Vegetables | Julienned carrots | kg | 8.50 | | TRUE |
+| | Cooked Meat | BBQ Pork | kg | 14.90 | 0.1 | TRUE |
+| | Cooked Meat | Whole Duck | con | 32.00 | | TRUE |
+| | Sauces & Stocks | Tomato sauce base | L | 9.00 | | TRUE |
 
 - Cột `Price` là **AUD**, nhập số thuần (`8.50`), không kèm ký hiệu `$`. App tự hiển thị thành `$8.50`.
+- Cột `Step` là **bước nhảy số lượng** — món nào đặt được lẻ thì điền vào đây:
+  - **Để trống** (hoặc `1`) = chỉ đặt được số nguyên: 1, 2, 3… Dùng cho Whole Duck và mọi món tính theo con/cái/hộp.
+  - **`0.1`** = đặt được 0.1, 0.5, 1.3, 2.5… Dùng cho các món cooked meat bán theo kg (BBQ Pork, Duck, Beef Tendon, Beef Gravy…).
+  - Điền `0.5` nếu chỉ muốn cho đặt theo nửa đơn vị, `0.25` cho một phần tư.
+  - Trong app, nút `+`/`−` nhảy đúng theo `Step` này; muốn đặt 2.5 thì **gõ thẳng vào ô số lượng** thay vì bấm 25 lần.
+  - Bếp trung tâm khi nhập số lượng thực giao cũng dùng đúng bước nhảy đó, nên invoice không bao giờ ra số lẻ kỳ lạ.
 - Cột `ID` để trống, app sẽ tự sinh mã lần đầu đọc và ghi lại vào sheet — bạn không cần tự quản lý ID.
 - Đây chính là nơi **admin chỉnh sửa danh sách món**: thêm dòng mới, xoá/đặt `Active=FALSE`, sửa giá trực tiếp trong Sheet. App sẽ luôn hiển thị dữ liệu mới nhất, không cần deploy lại.
 
@@ -299,6 +306,7 @@ Màn hình này đọc 500 dòng gần nhất của tab `Orders`. Cần xem xa h
 ## Quản lý vận hành
 
 - **Thêm/xoá/sửa món & giá**: sửa trực tiếp tab `Items`.
+- **Cho một món đặt được số lẻ**: điền `0.1` (hoặc `0.5`) vào cột `Step` của món đó trong tab `Items`. Không cần deploy lại.
 - **Thêm nhà hàng mới**: thêm dòng vào tab `Restaurants` với email Google của họ.
 - **Đổi email bếp trung tâm nhận đơn**: sửa `CentralKitchenEmail` trong tab `Settings`.
 - **Đổi hạn chốt đơn**: sửa `OrderCutoffHour` / `OrderCutoffDaysBefore` trong tab `Settings`.
