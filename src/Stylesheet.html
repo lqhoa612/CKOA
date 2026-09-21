@@ -44,36 +44,61 @@
   /* App shell */
   .app-header {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 18px;
+    gap: 10px 14px;
+    padding: 12px 16px;
     background: var(--card);
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 10;
   }
-  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  /* min-width:0 all the way down, otherwise the long email refuses to shrink
+     and pushes the nav buttons on top of the restaurant name. */
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+  .brand-text { min-width: 0; }
   .brand-logo {
     height: 34px;
     width: auto;
-    max-width: 120px;
+    max-width: 110px;
     object-fit: contain;
     flex: none;
   }
+  .restaurant-name,
+  .brand-text .small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .restaurant-name { font-weight: 600; font-size: 16px; }
-  .header-nav { display: flex; gap: 6px; }
+
+  .header-nav { display: flex; gap: 4px; flex: 0 0 auto; }
   .nav-btn {
     border: none;
     background: transparent;
-    padding: 8px 12px;
+    padding: 8px 11px;
     border-radius: 8px;
     font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
     cursor: pointer;
     color: var(--text);
   }
   .nav-btn.active { background: var(--primary); color: #fff; }
   .nav-btn.ghost { color: var(--muted); }
+
+  /* On a phone the tabs get their own row rather than fighting for space. */
+  @media (max-width: 620px) {
+    .header-nav {
+      flex: 1 0 100%;
+      gap: 2px;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .nav-btn { flex: 1 1 0; padding: 9px 6px; text-align: center; }
+  }
 
   main { padding: 12px 14px 90px; max-width: 640px; margin: 0 auto; }
 
