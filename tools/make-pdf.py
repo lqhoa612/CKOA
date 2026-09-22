@@ -1,82 +1,53 @@
 #!/usr/bin/env python3
 """
-Builds HUONG-DAN-SU-DUNG.pdf from HUONG-DAN-SU-DUNG.md.
+Builds the printable user guides from their markdown sources.
 
-Run it after editing the guide or replacing a screenshot:
+Run it after editing a guide or replacing a screenshot:
 
     pip install markdown pypdfium2
     npm install -g playwright          # only for the Chromium it ships
-    python3 tools/make-pdf.py
+    python3 tools/make-pdf.py          # both languages
+    python3 tools/make-pdf.py en       # just one
 
 Chromium does the rendering because it is the only thing here that handles
 Vietnamese text, the screenshots and CSS page breaks in one pass. The cover is
-rendered separately: Chromium puts its footer on every page of a document and
+rendered separately: Chromium prints its footer on every page of a document and
 applies one margin to all of them, so a full-bleed cover with no page number
 cannot live in the same render as the body.
 """
 
-import base64, io, os, re, subprocess, sys, tempfile
+import base64
+import io
+import os
+import re
+import subprocess
+import sys
+import tempfile
 
 import markdown
 import pypdfium2 as pdfium
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/'
-SCRATCH = tempfile.mkdtemp(prefix='ckoa-pdf-') + '/'
-OUT = REPO + 'HUONG-DAN-SU-DUNG.pdf'
+RENDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'render.js')
 
-md = io.open(REPO + 'HUONG-DAN-SU-DUNG.md', encoding='utf-8').read()
+GUIDES = {
+    'vi': dict(
+        source='HUONG-DAN-SU-DUNG.md',
+        contents='Mục lục',
+        title='Hướng dẫn sử dụng<br>app đặt hàng',
+        subtitle='Dành cho nhân viên nhà hàng<br>và bếp trung tâm',
+        footer='Hướng dẫn sử dụng app đặt hàng — Saigon Express',
+    ),
+    'en': dict(
+        source='USER-GUIDE.md',
+        contents='Contents',
+        title='How to use<br>the ordering app',
+        subtitle='For restaurant staff<br>and the central kitchen',
+        footer='How to use the ordering app — Saigon Express',
+    ),
+}
 
-# The table of contents is for scrolling a web page; in print the pages
-# themselves do that job, so drop it and the in-page jump links.
-md = re.sub(r'## Mục lục\n.*?\n---\n', '', md, flags=re.S)
-md = re.sub(r'\[([^\]]+)\]\(#[^)]+\)', r'\1', md)
-# The title becomes the cover page instead.
-md = re.sub(r'^# Hướng dẫn sử dụng app đặt hàng\n\n', '', md)
-
-html_body = markdown.markdown(md, extensions=['tables', 'attr_list', 'md_in_html'])
-
-# The markdown sets a pixel width for the web. In print the screenshots float
-# beside their text instead, so drop that and classify by shape.
-html_body = re.sub(r'\s*width="\d+"', '', html_body)
-
-TALL = ('03-', '04-', '05-', '06-', '07-')  # phone screenshots
-
-def embed(m):
-    """Inline every image so the PDF is one self-contained file."""
-    path = m.group(1)
-    name = os.path.basename(path)
-    cls = 'shot tall' if name.startswith(TALL) else 'shot wide'
-    data = base64.b64encode(open(REPO + path, 'rb').read()).decode()
-    return 'class="%s" src="data:image/png;base64,%s"' % (cls, data)
-
-html_body = re.sub(r'src="([^"]+\.png)"', embed, html_body)
-
-def make_steps(html):
-    """
-    Each numbered step is short text plus one screenshot. Left to float, the
-    screenshots stack into a chain that drags half-empty pages behind it, so
-    put every step's text and picture side by side in a block of their own
-    that a page break cannot split.
-    """
-    parts = re.split(r'(<h3>.*?</h3>)', html, flags=re.S)
-    out = [parts[0]]
-    for head, body in zip(parts[1::2], parts[2::2]):
-        img = re.search(r'<img class="shot [^"]*"[^>]*>', body)
-        if not img:
-            # A short subsection with no picture still has to stay with its
-            # heading, or the heading strands at the foot of a page.
-            plain = re.sub(r'<[^>]+>', '', body).strip()
-            wrap = '<div class="keep">%s%s</div>' if len(plain) < 700 else '%s%s'
-            out.append(wrap % (head, body))
-            continue
-        text = body.replace(img.group(0), '')
-        text = re.sub(r'<p>\s*</p>', '', text)
-        out.append('%s<div class="step"><div class="step-text">%s</div>%s</div>'
-                   % (head, text, img.group(0)))
-    return ''.join(out)
-
-html_body = make_steps(html_body)
-logo = base64.b64encode(open(REPO + 'assets/logo.png', 'rb').read()).decode()
+TALL = ('03-', '04-', '05-', '06-', '07-')  # the phone screenshots
 
 CSS = """
 @page { size: A4; margin: 18mm 16mm 20mm; }
@@ -143,27 +114,85 @@ h2, h3 { clear: both; }
 h2 + p, h3 + p { margin-top: 0; }
 """
 
-SHELL = ('<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">'
-         '<title>Hướng dẫn sử dụng app đặt hàng</title>'
+SHELL = ('<!DOCTYPE html><html><head><meta charset="utf-8"><title>%s</title>'
          '<style>%s</style></head><body>%s</body></html>')
 
-cover = """<div class="cover">
-  <img src="data:image/png;base64,%s" alt="">
-  <h1>Hướng dẫn sử dụng<br>app đặt hàng</h1>
-  <div class="sub">Dành cho nhân viên nhà hàng<br>và bếp trung tâm</div>
-  <div class="meta">Central Kitchen Ordering App &middot; Saigon Express</div>
-</div>""" % logo
 
-io.open(SCRATCH + 'cover.html', 'w', encoding='utf-8').write(SHELL % (CSS, cover))
-io.open(SCRATCH + 'body.html', 'w', encoding='utf-8').write(SHELL % (CSS, html_body))
+def embed(match):
+    """Inline an image so the finished PDF is one self-contained file."""
+    path = match.group(1)
+    cls = 'shot tall' if os.path.basename(path).startswith(TALL) else 'shot wide'
+    data = base64.b64encode(open(REPO + path, 'rb').read()).decode()
+    return 'class="%s" src="data:image/png;base64,%s"' % (cls, data)
 
-render = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'render.js')
-subprocess.run(['node', render, SCRATCH + 'cover.html', SCRATCH + 'cover.pdf', 'bare'], check=True)
-subprocess.run(['node', render, SCRATCH + 'body.html', SCRATCH + 'body.pdf'], check=True)
 
-merged = pdfium.PdfDocument.new()
-for part in ('cover.pdf', 'body.pdf'):
-    merged.import_pages(pdfium.PdfDocument(SCRATCH + part))
-merged.save(OUT)
+def make_steps(html):
+    """
+    Each numbered step is short text plus one screenshot. Left to float, the
+    screenshots stack into a chain that drags half-empty pages behind it, so
+    put every step's text and picture side by side in a block of their own
+    that a page break cannot split.
+    """
+    parts = re.split(r'(<h3>.*?</h3>)', html, flags=re.S)
+    out = [parts[0]]
+    for head, body in zip(parts[1::2], parts[2::2]):
+        img = re.search(r'<img class="shot [^"]*"[^>]*>', body)
+        if not img:
+            # A short subsection with no picture still has to stay with its
+            # heading, or the heading strands at the foot of a page.
+            plain = re.sub(r'<[^>]+>', '', body).strip()
+            wrap = '<div class="keep">%s%s</div>' if len(plain) < 700 else '%s%s'
+            out.append(wrap % (head, body))
+            continue
+        text = re.sub(r'<p>\s*</p>', '', body.replace(img.group(0), ''))
+        out.append('%s<div class="step"><div class="step-text">%s</div>%s</div>'
+                   % (head, text, img.group(0)))
+    return ''.join(out)
 
-print('%s - %d pages, %.0f KB' % (OUT, len(pdfium.PdfDocument(OUT)), os.path.getsize(OUT) / 1024))
+
+def build(lang):
+    g = GUIDES[lang]
+    scratch = tempfile.mkdtemp(prefix='ckoa-pdf-') + '/'
+    out = REPO + g['source'].replace('.md', '.pdf')
+
+    md = io.open(REPO + g['source'], encoding='utf-8').read()
+    # The table of contents is for scrolling a web page; in print the page
+    # numbers do that job, so drop it and the in-page jump links with it.
+    md = re.sub(r'## %s\n.*?\n---\n' % re.escape(g['contents']), '', md, flags=re.S)
+    md = re.sub(r'\[([^\]]+)\]\(#[^)]+\)', r'\1', md)
+    md = re.sub(r'\A# .*?\n\n', '', md)  # the title becomes the cover instead
+
+    body = markdown.markdown(md, extensions=['tables', 'attr_list', 'md_in_html'])
+    # The markdown sets a pixel width for the web. In print the screenshots
+    # float beside their text instead, so drop it and classify by shape.
+    body = re.sub(r'\s*width="\d+"', '', body)
+    body = re.sub(r'src="([^"]+\.png)"', embed, body)
+    body = make_steps(body)
+
+    logo = base64.b64encode(open(REPO + 'assets/logo.png', 'rb').read()).decode()
+    cover = ('<div class="cover"><img src="data:image/png;base64,%s" alt="">'
+             '<h1>%s</h1><div class="sub">%s</div>'
+             '<div class="meta">Central Kitchen Ordering App &middot; Saigon Express</div>'
+             '</div>') % (logo, g['title'], g['subtitle'])
+
+    title = re.sub(r'<br>', ' ', g['title'])
+    io.open(scratch + 'cover.html', 'w', encoding='utf-8').write(SHELL % (title, CSS, cover))
+    io.open(scratch + 'body.html', 'w', encoding='utf-8').write(SHELL % (title, CSS, body))
+
+    subprocess.run(['node', RENDER, scratch + 'cover.html', scratch + 'cover.pdf',
+                    g['footer'], 'bare'], check=True)
+    subprocess.run(['node', RENDER, scratch + 'body.html', scratch + 'body.pdf',
+                    g['footer']], check=True)
+
+    merged = pdfium.PdfDocument.new()
+    for part in ('cover.pdf', 'body.pdf'):
+        merged.import_pages(pdfium.PdfDocument(scratch + part))
+    merged.save(out)
+
+    print('%s - %d pages, %.0f KB'
+          % (out, len(pdfium.PdfDocument(out)), os.path.getsize(out) / 1024))
+
+
+if __name__ == '__main__':
+    for code in (sys.argv[1:] or sorted(GUIDES)):
+        build(code)

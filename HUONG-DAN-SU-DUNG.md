@@ -203,4 +203,4 @@ Xuất hoá đơn xong, đơn chuyển từ tab **To fulfil** sang tab **Invoice
 
 ---
 
-*Hướng dẫn cài đặt và quản trị (dành cho admin) nằm ở [SETUP.md](./SETUP.md).*
+*Hướng dẫn cài đặt và quản trị (dành cho admin) nằm ở [SETUP.md](./SETUP.md). Bản tiếng Anh của hướng dẫn này: [USER-GUIDE.md](./USER-GUIDE.md).*

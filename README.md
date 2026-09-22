@@ -23,6 +23,9 @@ src/
 
 ## Bắt đầu
 
-- **Nhân viên nhà hàng & bếp trung tâm** → [HUONG-DAN-SU-DUNG.md](./HUONG-DAN-SU-DUNG.md): cách mở app lần đầu (kèm hình), đặt hàng, xem lại đơn, và xuất hoá đơn.
-  Bản PDF để gửi cho quản lý các chi nhánh: [HUONG-DAN-SU-DUNG.pdf](./HUONG-DAN-SU-DUNG.pdf) (dựng lại bằng `python3 tools/make-pdf.py` sau khi sửa file .md).
+- **Nhân viên nhà hàng & bếp trung tâm** → cách mở app lần đầu (kèm hình), đặt hàng, xem lại đơn, và xuất hoá đơn:
+  - Tiếng Việt: [HUONG-DAN-SU-DUNG.md](./HUONG-DAN-SU-DUNG.md) &middot; [PDF](./HUONG-DAN-SU-DUNG.pdf)
+  - English: [USER-GUIDE.md](./USER-GUIDE.md) &middot; [PDF](./USER-GUIDE.pdf)
+
+  Sửa file `.md` xong thì dựng lại PDF bằng `python3 tools/make-pdf.py`.
 - **Admin** → xem hướng dẫn triển khai chi tiết trong [SETUP.md](./SETUP.md): tạo Google Sheet với cấu trúc dữ liệu, và deploy **2 web app** (một cái nhận diện người dùng, một cái đọc/ghi Sheet và gửi mail). Không cần Google Cloud Console hay OAuth Client ID.
