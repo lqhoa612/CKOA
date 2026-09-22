@@ -23,4 +23,5 @@ src/
 
 ## Bắt đầu
 
-Xem hướng dẫn triển khai chi tiết trong [SETUP.md](./SETUP.md): tạo Google Sheet với cấu trúc dữ liệu, và deploy **2 web app** (một cái nhận diện người dùng, một cái đọc/ghi Sheet và gửi mail). Không cần Google Cloud Console hay OAuth Client ID.
+- **Nhân viên nhà hàng & bếp trung tâm** → [HUONG-DAN-SU-DUNG.md](./HUONG-DAN-SU-DUNG.md): cách mở app lần đầu (kèm hình), đặt hàng, xem lại đơn, và xuất hoá đơn.
+- **Admin** → xem hướng dẫn triển khai chi tiết trong [SETUP.md](./SETUP.md): tạo Google Sheet với cấu trúc dữ liệu, và deploy **2 web app** (một cái nhận diện người dùng, một cái đọc/ghi Sheet và gửi mail). Không cần Google Cloud Console hay OAuth Client ID.
