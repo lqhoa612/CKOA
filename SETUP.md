@@ -131,12 +131,13 @@ Cách thứ hai tiện khi máy dùng chung, hoặc khi một người vừa có
 
 ### Tab `Items`
 
-| ID | Category | Name | Unit | Price | Step | Description | ImageUrl | Active |
-|---|---|---|---|---|---|---|---|---|
-| | Prepped Vegetables | Julienned carrots | kg | 8.50 | | Washed, peeled, cut 4cm. | https://… | TRUE |
-| | Cooked Meat | BBQ Pork | kg | 14.90 | 0.1 | Marinated overnight, roasted, sliced. | https://… | TRUE |
-| | Cooked Meat | Whole Duck | each | 32.00 | | | | TRUE |
-| | Sauces & Stocks | Tomato sauce base | L | 9.00 | | | | TRUE |
+| ID | Category | Name | Unit | Price | Step | MaxQty | Description | ImageUrl | Active |
+|---|---|---|---|---|---|---|---|---|---|
+| | Prepped Vegetables | Julienned carrots | kg | 8.50 | | | Washed, peeled, cut 4cm. | https://… | TRUE |
+| | Cooked Meat | BBQ Pork | kg | 14.90 | 0.1 | | Marinated overnight, roasted, sliced. | https://… | TRUE |
+| | Cooked Meat | Whole Duck | each | 32.00 | | | | | TRUE |
+| | Uniform | Staff T-Shirt (M) | each | 18.00 | | 1 | Black, embroidered logo. | | TRUE |
+| | Uniform | Staff T-Shirt (L) | each | 18.00 | | 1 | Black, embroidered logo. | | TRUE |
 
 > **Giao diện app là tiếng Anh** vì có nhân viên không đọc được tiếng Việt. Nên cột `Name`, `Unit`, `Category` và `Description` cũng nên viết tiếng Anh. Riêng `Unit` thì **bắt buộc** dùng chữ tiếng Anh (`kg`, `g`, `L`, `ml`, `each`, `box`…) — app dựa vào đó để biết món nào đặt được số lẻ, `ký` hay `hộp` nó không hiểu.
 
@@ -150,6 +151,16 @@ Cách thứ hai tiện khi máy dùng chung, hoặc khi một người vừa có
 > **Nếu nút `+`/`−` vẫn nhảy theo 1 với món bán theo kg**, gần như chắc chắn là bản code trên Apps Script chưa được cập nhật. Xem dưới món đó trong app: có dòng *"in steps of 0.1"* nghĩa là app đã nhận đúng; không có dòng đó nghĩa là code cũ. Deploy lại theo mục 4.4.
 
 **Bếp trung tâm nhập số thực giao chính xác hơn.** Ô `Supplied` cho gõ thẳng số đến 3 chữ số thập phân (ví dụ `2.345` kg cân được trên cân), không bị giới hạn theo bước nhảy của món — vì cân thực tế không bao giờ ra đúng bội số của 0.1. Chỉ không được nhập nhiều hơn số đã đặt.
+
+#### Cột `MaxQty` — giới hạn số lượng tối đa mỗi đơn
+
+Không bắt buộc. **Để trống = không giới hạn** (đa số món nên để trống).
+
+Điền số vào thì nhà hàng không đặt quá số đó trong một đơn: nút `+` **mờ đi khi chạm trần**, gõ số lớn hơn cũng bị kéo về đúng trần. Dòng chữ xám dưới tên món hiện thêm `max 1`.
+
+Server kiểm tra lại lần nữa khi nhận đơn, không tin số từ trình duyệt gửi lên.
+
+Dùng cho những món **cấp phát có định mức**, ví dụ áo đồng phục mỗi quý một cái, hoặc món bếp chỉ làm được số lượng có hạn.
 
 #### Cột `Description` — giải thích món đó là gì
 
@@ -186,6 +197,16 @@ Link hỏng hoặc ảnh không tải được thì app **tự ẩn ảnh đi**,
 - Cột `Category` vừa là tiêu đề nhóm trong danh sách, vừa là **nội dung ô chọn nhóm món** ở đầu màn hình đặt hàng — app tự gom các giá trị khác nhau trong cột này, thêm nhóm mới không phải sửa code. Viết đúng chính tả và thống nhất, vì `Cooked Meat` và `Cooked meat` sẽ thành hai nhóm riêng.
 - Người đặt còn **tìm được theo cột `Description`**, nên viết rõ nguyên liệu chính vào đó thì tìm dễ hơn nhiều.
 - Cột `ID` để trống, app sẽ tự sinh mã lần đầu đọc và ghi lại vào sheet — bạn không cần tự quản lý ID.
+#### Món có nhiều biến thể (size áo, loại bao bì…) — tách thành nhiều dòng
+
+Áo 3 size thì làm **3 dòng riêng**: `Staff T-Shirt (S)`, `Staff T-Shirt (M)`, `Staff T-Shirt (L)`. **Đừng** làm một dòng `Staff T-Shirt` rồi bảo người đặt ghi size vào ô note.
+
+Lý do: ô note là chữ tự do, máy không cộng trừ được. Một dòng `T-Shirt` số lượng 5 kèm note *"2 cái M, 3 cái L"* thì bếp phải tự đọc và tự hiểu, invoice không tách được tiền theo size, và nếu bếp chỉ giao được 3 cái thì không có cách nào ghi lại là thiếu size nào. Tách thành 3 dòng thì mỗi dòng có số lượng riêng, tính tiền riêng, ghi thiếu riêng — tất cả đều tự động.
+
+Tìm kiếm vẫn gộp chúng lại: gõ `shirt` ra cả ba dòng.
+
+**Ô note cho từng món để dành cho dặn dò không liệt kê trước được** — *"cắt lát mỏng hơn bình thường"*, *"đóng gói riêng 2 phần"*, *"cho người mới"*. Những thứ **liệt kê trước được thì phải thành dòng riêng**.
+
 - Đây chính là nơi **admin chỉnh sửa danh sách món**: thêm dòng mới, xoá/đặt `Active=FALSE`, sửa giá trực tiếp trong Sheet. App sẽ luôn hiển thị dữ liệu mới nhất, không cần deploy lại.
 
 ### Tab `Orders` (log, để app tự ghi — bạn chỉ cần tạo header)

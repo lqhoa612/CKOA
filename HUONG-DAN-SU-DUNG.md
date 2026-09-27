@@ -117,7 +117,9 @@ Trên màn hình này:
 - **Delivery date (ngày giao)** — app chỉ hiện **2 ngày giao gần nhất** còn kịp đặt. Bấm vào ngày bạn muốn. Dòng chữ nhỏ *Cut-off* bên dưới là **hạn chót** đặt đơn cho ngày đó.
 - **Ordered by (người đặt)** — app tự điền, bạn không phải gõ.
 - **Delivery address (địa chỉ giao)** — app tự điền sẵn địa chỉ nhà hàng. Sửa lại nếu hôm đó cần giao chỗ khác.
-- **Notes for the kitchen (ghi chú)** — không bắt buộc. Đây là chỗ để **xin những món không có trong danh sách**, hoặc dặn dò gì thêm. Ví dụ: *"Cho xin thêm 2 kg hẹ nếu bếp còn."*
+- **Ô ghi chú dưới mỗi món** — không bắt buộc. Dặn riêng về **món đó thôi**: *"Cắt lát mỏng hơn bình thường"*, *"Đóng gói riêng làm 2 phần"*. Ghi chú này đi kèm đúng dòng món đó trong email cho bếp và trên hoá đơn.
+  > ⚠️ **Đừng ghi số lượng vào ô này.** Ví dụ đừng ghi *"2 cái size M, 3 cái size L"* — bếp phải tự đọc tự đoán, và hoá đơn không tách tiền theo size được. Món có nhiều size/loại thì trong danh sách đã tách sẵn thành các dòng riêng, chọn đúng dòng và đặt số lượng ở đó.
+- **Notes for the kitchen (ghi chú chung)** — không bắt buộc. Đây là chỗ để **xin những món không có trong danh sách**, hoặc dặn dò chung cho cả đơn. Ví dụ: *"Cho xin thêm 2 kg hẹ nếu bếp còn."*
 
 > ⏰ **Hạn đặt hàng: 4 giờ chiều ngày hôm trước.**
 > Giao thứ 4 thì phải đặt xong trước 4pm thứ 3. Giao thứ 6 thì trước 4pm thứ 5.
@@ -185,6 +187,7 @@ Công việc ở đây là **ghi lại số lượng thực sự đã giao**, v�
 
 <img src="assets/guide/08-bep-xuat-invoice.png" width="380" alt="Bảng xuất hoá đơn: cột Ordered là số đã đặt, cột Supplied là số thực giao">
 
+- Ghi chú nhà hàng viết riêng cho một món hiện **màu đỏ ngay dưới tên món đó**.
 - Cột **Ordered** là số nhà hàng đặt. Cột **Supplied** là **số bếp thực sự giao** — sửa lại nếu giao thiếu.
 - **Gõ thẳng số cân được vào ô Supplied**, không cần bấm `+`/`−`. Nhận số lẻ đến 3 chữ số thập phân — ví dụ cân ra `2.345` kg thì nhập đúng `2.345`. Không bị bó theo bước nhảy 0.1 của bên đặt hàng, vì cân thực tế không bao giờ ra tròn.
 - Không nhập nhiều hơn số đã đặt.

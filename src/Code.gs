@@ -38,6 +38,8 @@ var SHEET_NAMES = {
 var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
 var UPCOMING_DELIVERY_COUNT = 2;
 var MAX_NOTES_LENGTH = 2000;
+/** A per-item note is an instruction, not an essay. */
+var MAX_ITEM_NOTE_LENGTH = 200;
 var KITCHEN_QUEUE_SCAN_ROWS = 300; // how far back the kitchen queue looks
 
 var ADMIN_SCAN_ROWS = 500; // how far back the admin overview looks
@@ -401,6 +403,8 @@ function getActiveItems_() {
       unit: r.Unit || '',
       price: parseAmount_(r.Price),
       step: stepForItem_(r.Step, r.Unit),
+      // Most of a restaurant's order per delivery. 0 means no limit.
+      maxQty: Math.max(0, parseAmount_(r.MaxQty)),
       // What is in the bag and what it is for. Shown when the card is opened.
       description: String(r.Description == null ? '' : r.Description).trim(),
       // Any https image URL. The browser loads it directly, so it has to be
@@ -572,6 +576,7 @@ function apiIssueInvoice_(user, payload) {
       unit: li.unit,
       price: li.price,
       step: step,
+      note: String(li.note || ''),
       orderedQty: li.qty,
       qty: suppliedQty,
       shortQty: roundToStep_(li.qty - suppliedQty, SUPPLY_STEP),
@@ -691,6 +696,8 @@ function apiSubmitOrder_(restaurant, order) {
     if (!product) return;
     var qty = roundToStep_(line.qty, product.step);
     if (qty <= 0) return;
+    // The browser caps this too, but the browser is not what we trust.
+    if (product.maxQty > 0 && qty > product.maxQty) qty = product.maxQty;
     var lineTotal = roundToStep_(product.price * qty, 0.01);
     total += lineTotal;
     lineItems.push({
@@ -701,6 +708,7 @@ function apiSubmitOrder_(restaurant, order) {
       // Carried along so the kitchen screen knows how finely this item splits.
       step: product.step,
       qty: qty,
+      note: String(line.note == null ? '' : line.note).trim().slice(0, MAX_ITEM_NOTE_LENGTH),
       lineTotal: lineTotal
     });
   });
@@ -760,6 +768,7 @@ function sendOrderEmail_(data) {
   textLines.push('Items:');
   data.lineItems.forEach(function (li) {
     textLines.push('- ' + li.name + ' x' + formatQty_(li.qty) + ' ' + li.unit + ' = ' + formatCurrency_(li.lineTotal));
+    if (li.note) textLines.push('    Note: ' + li.note);
   });
   textLines.push('');
   textLines.push('Total: ' + formatCurrency_(data.total));
@@ -779,7 +788,11 @@ function sendOrderEmail_(data) {
     .map(function (li) {
       return (
         '<tr>' +
-        '<td style="padding:4px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) + '</td>' +
+        '<td style="padding:4px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) +
+          (li.note
+            ? '<div style="font-size:12px;color:#c0392b;margin-top:2px;">&#9656; ' +
+              escapeHtml_(li.note) + '</div>'
+            : '') + '</td>' +
         '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center;">' + formatQty_(li.qty) + ' ' + escapeHtml_(li.unit) + '</td>' +
         '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.lineTotal) + '</td>' +
         '</tr>'
@@ -826,7 +839,11 @@ function invoiceHtml_(data) {
   var rowsHtml = data.lines.map(function (li) {
     var short = li.shortQty > 0;
     return '<tr>' +
-      '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) +
+        (li.note
+          ? '<div style="font-size:12px;color:#c0392b;margin-top:2px;">&#9656; ' +
+            escapeHtml_(li.note) + '</div>'
+          : '') + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;color:#777;">' + formatQty_(li.orderedQty) + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;' +
         (short ? 'color:#c0392b;font-weight:bold;' : '') + '">' + formatQty_(li.qty) + '</td>' +
@@ -915,6 +932,7 @@ function sendInvoiceEmail_(data) {
     textLines.push('- ' + li.name + ': ordered ' + formatQty_(li.orderedQty) +
       ', supplied ' + formatQty_(li.qty) + ' ' + li.unit +
       (li.shortQty > 0 ? ' (short ' + formatQty_(li.shortQty) + ')' : '') + ' = ' + formatCurrency_(li.lineTotal));
+    if (li.note) textLines.push('    Note: ' + li.note);
   });
   textLines.push('');
   textLines.push('Total invoiced: ' + formatCurrency_(data.invoiceTotal));
