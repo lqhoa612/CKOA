@@ -110,19 +110,73 @@
     color: var(--muted);
     margin: 18px 0 8px;
   }
+  /* The card is a column: the row on top, the photo and description below it
+     once opened. The row itself stays a single line of controls. */
   .item-card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .item-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
   }
-  .item-info { flex: 1; padding-right: 10px; }
+  .item-thumb {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-right: 9px;
+    flex: none;
+    cursor: pointer;
+    background: var(--bg);
+  }
+  /* min-width lets a long name shrink instead of shoving the +/- off screen. */
+  .item-info { flex: 1; min-width: 0; padding-right: 10px; }
   .item-name { font-weight: 600; font-size: 15px; }
   .item-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .has-detail .item-info { cursor: pointer; }
+  .has-detail .item-info:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+  /* A caret is the only thing telling people the card opens, so it has to be
+     visible without being loud. */
+  .detail-caret {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-left: 7px;
+    vertical-align: middle;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--muted);
+    transition: transform 0.15s ease;
+  }
+  .item-card.open .detail-caret { transform: rotate(180deg); }
+
+  .item-detail {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .item-photo {
+    display: block;
+    width: 100%;
+    max-width: 320px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+  .item-description {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    white-space: pre-line;
+  }
   .qty-control {
     display: flex;
     align-items: center;
@@ -405,12 +459,30 @@
   }
   .supplied-input:focus { outline: none; border-color: var(--primary); }
   .fulfil-hint { margin: 8px 0 0; }
+  /* These two overwrite every box at once, so they read as real buttons set
+     apart from the rest, not as small text links next to the inputs. */
   .fulfil-actions {
     display: flex;
-    gap: 16px;
-    justify-content: flex-end;
-    margin-top: 10px;
+    gap: 10px;
+    margin-top: 14px;
   }
+  .bulk-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 42px;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .bulk-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .bulk-btn.danger { color: var(--primary); border-color: #eccfca; }
+  .bulk-btn.danger:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
   .fulfil-form .primary-btn { margin-top: 14px; }
 
   .order-note {

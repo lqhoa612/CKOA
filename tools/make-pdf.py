@@ -47,7 +47,7 @@ GUIDES = {
     ),
 }
 
-TALL = ('03-', '04-', '05-', '06-', '07-')  # the phone screenshots
+TALL = ('03-', '03b', '04-', '05-', '06-', '07-')  # the phone screenshots
 
 CSS = """
 @page { size: A4; margin: 18mm 16mm 20mm; }

@@ -131,12 +131,14 @@ Cách thứ hai tiện khi máy dùng chung, hoặc khi một người vừa có
 
 ### Tab `Items`
 
-| ID | Category | Name | Unit | Price | Step | Active |
-|---|---|---|---|---|---|---|
-| | Prepped Vegetables | Julienned carrots | kg | 8.50 | | TRUE |
-| | Cooked Meat | BBQ Pork | kg | 14.90 | 0.1 | TRUE |
-| | Cooked Meat | Whole Duck | con | 32.00 | | TRUE |
-| | Sauces & Stocks | Tomato sauce base | L | 9.00 | | TRUE |
+| ID | Category | Name | Unit | Price | Step | Description | ImageUrl | Active |
+|---|---|---|---|---|---|---|---|---|
+| | Prepped Vegetables | Julienned carrots | kg | 8.50 | | Washed, peeled, cut 4cm. | https://… | TRUE |
+| | Cooked Meat | BBQ Pork | kg | 14.90 | 0.1 | Marinated overnight, roasted, sliced. | https://… | TRUE |
+| | Cooked Meat | Whole Duck | each | 32.00 | | | | TRUE |
+| | Sauces & Stocks | Tomato sauce base | L | 9.00 | | | | TRUE |
+
+> **Giao diện app là tiếng Anh** vì có nhân viên không đọc được tiếng Việt. Nên cột `Name`, `Unit`, `Category` và `Description` cũng nên viết tiếng Anh. Riêng `Unit` thì **bắt buộc** dùng chữ tiếng Anh (`kg`, `g`, `L`, `ml`, `each`, `box`…) — app dựa vào đó để biết món nào đặt được số lẻ, `ký` hay `hộp` nó không hiểu.
 
 - Cột `Price` là **AUD**, nhập số thuần (`8.50`), không kèm ký hiệu `$`. App tự hiển thị thành `$8.50`.
 - Cột `Step` là **bước nhảy số lượng**. **Cột này không bắt buộc** — app tự suy ra từ cột `Unit` khi bỏ trống:
@@ -148,6 +150,39 @@ Cách thứ hai tiện khi máy dùng chung, hoặc khi một người vừa có
 > **Nếu nút `+`/`−` vẫn nhảy theo 1 với món bán theo kg**, gần như chắc chắn là bản code trên Apps Script chưa được cập nhật. Xem dưới món đó trong app: có dòng *"in steps of 0.1"* nghĩa là app đã nhận đúng; không có dòng đó nghĩa là code cũ. Deploy lại theo mục 4.4.
 
 **Bếp trung tâm nhập số thực giao chính xác hơn.** Ô `Supplied` cho gõ thẳng số đến 3 chữ số thập phân (ví dụ `2.345` kg cân được trên cân), không bị giới hạn theo bước nhảy của món — vì cân thực tế không bao giờ ra đúng bội số của 0.1. Chỉ không được nhập nhiều hơn số đã đặt.
+
+#### Cột `Description` — giải thích món đó là gì
+
+Không bắt buộc. Điền vào thì trong app món đó có **mũi tên nhỏ** cạnh tên; người đặt bấm vào tên món là mở ra phần giải thích. Để trống thì món đó không mở ra gì cả.
+
+Dùng để nói rõ **trong gói có gì**, sơ chế tới đâu, để được bao lâu — những thứ nhà hàng hay gọi điện hỏi. Ví dụ: *"Pork shoulder marinated overnight in five-spice, then roasted. Arrives sliced and ready to plate. Keeps 4 days chilled."*
+
+Xuống dòng trong ô bằng **Alt+Enter** (Windows) hoặc **Option+Enter** (Mac); app giữ nguyên các dòng đó.
+
+#### Cột `ImageUrl` — ảnh món
+
+Không bắt buộc. Điền vào thì app hiện **ảnh nhỏ bên trái tên món**, và ảnh lớn khi bấm mở món ra.
+
+**Phải là link `https://` mở thẳng ra file ảnh** — dán vào trình duyệt phải thấy đúng tấm ảnh, chứ không phải một trang có tấm ảnh nằm trong đó. App bỏ qua mọi thứ không bắt đầu bằng `https://`.
+
+Hai cách lấy link:
+
+1. **Google Drive** — dễ nhất nếu quen Drive. Upload ảnh, chuột phải → Share → đổi thành **Anyone with the link**, copy link dạng `https://drive.google.com/file/d/`**`FILE_ID`**`/view?usp=sharing`, rồi ghép `FILE_ID` vào mẫu:
+   ```
+   https://drive.google.com/thumbnail?id=FILE_ID&sz=w600
+   ```
+   ⚠️ **Tôi chưa kiểm chứng được cách này** — môi trường của tôi bị chặn không gọi ra `drive.google.com`. Google cũng đã từng đổi cách hoạt động của link này. **Làm thử một món trước**, thấy ảnh hiện đúng thì làm tiếp các món còn lại.
+
+2. **Để ảnh trong repo GitHub** — cách này đã chạy thật (logo của app đang dùng). Bỏ ảnh vào `assets/items/`, push lên, rồi dùng link:
+   ```
+   https://raw.githubusercontent.com/lqhoa612/CKOA/main/assets/items/bbq-pork.jpg
+   ```
+   Chắc chắn chạy, nhưng mỗi lần thêm ảnh phải push git — không tiện cho người không dùng git.
+
+**Ảnh nên nén trước khi up**, khoảng **600–800px chiều rộng, dưới 150KB**. Ảnh chụp thẳng từ điện thoại thường 3–5MB; để nguyên thì nhà hàng mở app bằng 4G sẽ rất chậm. App có lazy-load (chỉ tải ảnh khi cuộn tới) nhưng không thay được việc nén.
+
+Link hỏng hoặc ảnh không tải được thì app **tự ẩn ảnh đi**, không hiện icon ảnh vỡ, món vẫn đặt bình thường.
+
 - Cột `ID` để trống, app sẽ tự sinh mã lần đầu đọc và ghi lại vào sheet — bạn không cần tự quản lý ID.
 - Đây chính là nơi **admin chỉnh sửa danh sách món**: thêm dòng mới, xoá/đặt `Active=FALSE`, sửa giá trực tiếp trong Sheet. App sẽ luôn hiển thị dữ liệu mới nhất, không cần deploy lại.
 
