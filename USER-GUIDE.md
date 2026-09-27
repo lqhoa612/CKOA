@@ -72,7 +72,20 @@ The app then sits on your home screen like any other app.
 
 ## Part B — Placing an order
 
-### Step 1 — Choose your items and quantities
+### Step 1 — Find an item quickly
+
+Scrolling a long list gets tedious. There are two tools at the top, and they **work together**:
+
+<img src="assets/guide/en/03c-search.png" width="330" alt="The search box with duck typed in, narrowing the list to two items">
+
+- **The search box** — type a few letters of the name. It also searches the **description**, so searching "hoisin" finds items with hoisin in them even when the name does not say so. Accents do not matter: typing `pho` finds `Phở`.
+- **The category picker** — choose one group (Cooked Meat, Prepped Vegetables…) to see only that group.
+
+The grey line underneath always says **how many items are showing out of the total**, with a **Show all** button back to the full list. If an item seems to be missing, you almost certainly still have a filter on — tap **Show all**.
+
+Filtering **never loses your quantities**. Anything already in the cart stays there even while hidden, and the red bar at the bottom still counts it.
+
+### Step 2 — Choose your items and quantities
 
 <img src="assets/guide/en/03-choose-items.png" width="330" alt="The item list with BBQ Pork set to 2.5 kg">
 
@@ -94,7 +107,7 @@ Items with no *"in steps of…"* line (Whole Duck, for example — sold by the b
 
 The red bar along the bottom always shows **how many items you have chosen** and the **running total**. Tap **View cart** to review the order.
 
-### Step 2 — Check the cart and fill in the delivery details
+### Step 3 — Check the cart and fill in the delivery details
 
 <img src="assets/guide/en/04-cart.png" width="330" alt="The Confirm your order screen with the item table, delivery date, address and notes box">
 
@@ -110,7 +123,7 @@ On this screen:
 > For a Wednesday delivery, order by 4pm Tuesday. For a Friday delivery, order by 4pm Thursday.
 > After the cut-off, that date **disappears from the list** and you can only choose the next delivery day.
 
-### Step 3 — Tap **Place order**
+### Step 4 — Tap **Place order**
 
 <img src="assets/guide/en/05-order-sent.png" width="330" alt="The cart is empty again and a black message confirms the order was sent, with the order number">
 
@@ -198,6 +211,7 @@ Once invoiced, the order moves from **To fulfil** to **Invoiced**. Invoices **ca
 | The app shows **a different restaurant** | Wrong email. See [Part D](#part-d--if-you-signed-in-with-the-wrong-email). |
 | **No delivery dates** to choose from | Both of the next delivery dates are past their 4pm cut-off. Check again later, or call the central kitchen if it's urgent. |
 | The delivery date you want **isn't listed** | The app only offers the two nearest dates still open. Dates further out become available closer to the time. |
+| An item has **vanished** from the list | You almost certainly still have a filter on. Tap **Show all** on the grey line at the top of the list. |
 | You need an item **that isn't on the list** | Write it in the **Notes for the kitchen** box when you order. |
 | You tapped **Place order** but **saw no confirmation** | Check your internet connection, then look under **My orders** to see whether it went through. If it isn't there, order again. |
 | A price shows **$0.00** | Your manager hasn't entered a price for that item yet. You can still order it. |
