@@ -440,6 +440,41 @@
     color: var(--muted);
   }
   .filter-summary .link-btn { font-size: 13px; }
+
+  /* A per-item note in the cart. Looks like a hint until it has something in
+     it, so a cart full of empty boxes does not read as work to be done. */
+  .note-row td { border-bottom: 1px solid var(--border); padding-top: 0 !important; }
+  .item-note-input {
+    width: 100%;
+    border: 1px dashed var(--border);
+    border-radius: 7px;
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: #fff;
+  }
+  .item-note-input.empty { color: var(--muted); background: transparent; }
+  .item-note-input:focus {
+    outline: none;
+    border-style: solid;
+    border-color: var(--primary);
+    background: #fff;
+  }
+  .item-note-input::placeholder { color: var(--muted); }
+
+  /* The same note read back on the kitchen, history and admin screens. */
+  .line-note {
+    font-size: 12px;
+    color: var(--primary);
+    margin-top: 2px;
+    line-height: 1.35;
+  }
+
+  .qty-btn.disabled, .qty-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
   .filter-bar select {
     flex: 1 1 140px;
     min-width: 0;

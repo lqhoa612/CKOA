@@ -117,7 +117,9 @@ On this screen:
 - **Delivery date** — the app only offers the **two nearest delivery dates** still open for ordering. Tap the one you want. The small *Cut-off* line underneath is the **deadline** for that date.
 - **Ordered by** — filled in automatically; you don't type it.
 - **Delivery address** — pre-filled with your restaurant's address. Change it if the delivery needs to go somewhere else that day.
-- **Notes for the kitchen** — optional. This is where you **ask for anything that isn't on the list**, or add any other instructions. For example: *"Could we also get 2 kg of garlic chives if the kitchen has any?"*
+- **The note box under each item** — optional. For instructions about **that item only**: *"Slice thinner than usual"*, *"Pack as two separate lots"*. The note travels with that exact line in the kitchen's email and on the invoice.
+  > ⚠️ **Do not put quantities in here.** Never write *"2 in size M, 3 in size L"* — the kitchen has to read and guess, and the invoice cannot split the price by size. Items that come in several sizes or types are already separate lines in the list: pick the right line and set its quantity there.
+- **Notes for the kitchen (whole order)** — optional. This is where you **ask for anything that isn't on the list**, or add instructions covering the order as a whole. For example: *"Could we also get 2 kg of garlic chives if the kitchen has any?"*
 
 > ⏰ **Orders close at 4pm the day before delivery.**
 > For a Wednesday delivery, order by 4pm Tuesday. For a Friday delivery, order by 4pm Thursday.
@@ -185,6 +187,7 @@ On the **To fulfil** tab, tap **Fulfil this order** on the order you are working
 
 <img src="assets/guide/en/08-kitchen-invoice.png" width="380" alt="The invoice form: the Ordered column shows what was ordered, the Supplied column what actually went out">
 
+- A note the restaurant wrote for one particular item appears **in red directly under that item's name**.
 - The **Ordered** column is what the restaurant asked for. The **Supplied** column is **what the kitchen actually sent** — change it if anything was short.
 - **Type the weight straight into the Supplied box** — no need for `+`/`−`. It takes any figure to three decimal places, so a scale reading of `2.345` kg goes in as `2.345`. It is not limited to the 0.1 steps the restaurant orders in, because real scales never land on a round figure.
 - You cannot enter more than was ordered.

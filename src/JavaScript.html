@@ -13,6 +13,7 @@
     deliveryDates: [],
     selectedDate: null,
     cart: {}, // id -> qty
+    itemNotes: {}, // id -> one-off instruction for that item on this order
     filter: { query: '', category: '' },
     kitchen: { pending: [], invoiced: [] },
     admin: { orders: [], restaurants: [], summary: {} },
@@ -244,11 +245,13 @@
           '<div class="item-name">' + escapeHtml(item.name) +
           (hasDetail ? '<span class="detail-caret" aria-hidden="true"></span>' : '') + '</div>' +
           '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) +
-          (item.step < 1 ? ' &middot; ' + formatQty(item.step) + ' steps' : '') + '</div>' +
+          (item.step < 1 ? ' &middot; ' + formatQty(item.step) + ' steps' : '') +
+          (item.maxQty > 0 ? ' &middot; max ' + formatQty(item.maxQty) : '') + '</div>' +
           '</div>' +
           '<div class="qty-control">' +
           '<button class="qty-btn qty-minus' + (qty > 0 ? ' primary' : '') + '" aria-label="Decrease quantity">-</button>' +
           '<input class="qty-input" type="number" inputmode="decimal" min="0" ' +
+          (item.maxQty > 0 ? 'max="' + item.maxQty + '" ' : '') +
           'step="' + item.step + '" value="' + formatQty(qty) + '" aria-label="Quantity">' +
           '<button class="qty-btn primary qty-plus" aria-label="Increase quantity">+</button>' +
           '</div></div>' +
@@ -281,6 +284,7 @@
 
       card.querySelector('.qty-plus').addEventListener('click', function () { stepQty(card, id, 1); });
       card.querySelector('.qty-minus').addEventListener('click', function () { stepQty(card, id, -1); });
+      refreshQtyButtons(card, id);
 
       // Typing must not trigger a re-render: that would rebuild the field and
       // throw away the cursor mid-entry.
@@ -315,13 +319,21 @@
     return state.items.filter(function (i) { return i.id === id; })[0];
   }
 
-  /** Writes a quantity into the cart, snapped to the item's step. */
+  /** Writes a quantity into the cart, snapped to the item's step and cap. */
   function setQty(id, value) {
     var item = itemById(id);
     var step = (item && item.step) || 1;
+    var max = (item && item.maxQty) || 0;
     var qty = roundToStep(Math.max(0, Number(value) || 0), step);
-    if (qty > 0) state.cart[id] = qty;
-    else delete state.cart[id];
+    if (max > 0 && qty > max) qty = max;
+    if (qty > 0) {
+      state.cart[id] = qty;
+    } else {
+      delete state.cart[id];
+      // A note with nothing ordered would travel to the kitchen attached to
+      // an item that is not on the order.
+      delete state.itemNotes[id];
+    }
     return qty;
   }
 
@@ -339,8 +351,19 @@
     card.querySelector('.item-info').setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
+  /** Button states for one card. Cheap, so it can run for every card. */
+  function refreshQtyButtons(card, id) {
+    var item = itemById(id);
+    var qty = state.cart[id] || 0;
+    card.querySelector('.qty-minus').classList.toggle('primary', qty > 0);
+    var plus = card.querySelector('.qty-plus');
+    var atMax = !!(item && item.maxQty > 0 && qty >= item.maxQty);
+    plus.disabled = atMax;
+    plus.classList.toggle('disabled', atMax);
+  }
+
   function refreshCard(card, id) {
-    card.querySelector('.qty-minus').classList.toggle('primary', (state.cart[id] || 0) > 0);
+    refreshQtyButtons(card, id);
     renderCartBar();
   }
 
@@ -348,7 +371,10 @@
     return Object.keys(state.cart).map(function (id) {
       var item = state.items.filter(function (i) { return i.id === id; })[0];
       if (!item) return null;
-      return { id: id, name: item.name, unit: item.unit, price: item.price, qty: state.cart[id] };
+      return {
+        id: id, name: item.name, unit: item.unit, price: item.price,
+        qty: state.cart[id], note: state.itemNotes[id] || ''
+      };
     }).filter(Boolean);
   }
 
@@ -377,14 +403,32 @@
     if (!lines.length) return;
 
     var itemsHtml = lines.map(function (l) {
+      // The note lives on a full-width row under its item rather than in a
+      // column of its own: a column would be empty on nearly every line.
       return '<tr>' +
         '<td>' + escapeHtml(l.name) + '</td>' +
         '<td class="num">' + formatQty(l.qty) + '</td>' +
         '<td>' + escapeHtml(l.unit) + '</td>' +
         '<td class="num">' + formatCurrency(l.price * l.qty) + '</td>' +
-        '</tr>';
+        '</tr>' +
+        '<tr class="note-row"><td colspan="4">' +
+        '<input class="item-note-input' + (l.note ? '' : ' empty') + '" type="text" ' +
+        'data-id="' + escapeHtml(l.id) + '" maxlength="200" ' +
+        'value="' + escapeHtml(l.note) + '" ' +
+        'placeholder="+ Add a note for this item" ' +
+        'aria-label="Note for ' + escapeHtml(l.name) + '">' +
+        '</td></tr>';
     }).join('');
-    document.getElementById('checkout-items').innerHTML = itemsHtml;
+    var tbody = document.getElementById('checkout-items');
+    tbody.innerHTML = itemsHtml;
+    tbody.querySelectorAll('.item-note-input').forEach(function (input) {
+      input.addEventListener('input', function () {
+        var text = input.value.trim();
+        if (text) state.itemNotes[input.getAttribute('data-id')] = text;
+        else delete state.itemNotes[input.getAttribute('data-id')];
+        input.classList.toggle('empty', !text);
+      });
+    });
     document.getElementById('checkout-total').textContent = formatCurrency(cartTotal());
 
     var datesHtml = state.deliveryDates.map(function (d) {
@@ -418,6 +462,7 @@
   document.getElementById('clear-cart-btn').addEventListener('click', function () {
     if (!window.confirm('Remove all items and start again?')) return;
     state.cart = {};
+    state.itemNotes = {};
     closeCheckout();
     renderCatalog();
     renderCartBar();
@@ -444,6 +489,7 @@
         btn.textContent = 'Place order';
         if (!result.ok) { showOrderError(result.message || 'Something went wrong.'); return; }
         state.cart = {};
+        state.itemNotes = {};
         document.getElementById('order-notes').value = '';
         closeCheckout();
         renderCatalog();
@@ -456,7 +502,7 @@
         showOrderError(err.message || String(err));
       })
       .submitOrder({
-        items: lines.map(function (l) { return { id: l.id, qty: l.qty }; }),
+        items: lines.map(function (l) { return { id: l.id, qty: l.qty, note: l.note }; }),
         deliveryDate: state.selectedDate,
         deliveryAddress: deliveryAddress,
         notes: notes
@@ -510,7 +556,9 @@
       return;
     }
     container.innerHTML = orders.map(function (o) {
-      var itemsSummary = o.items.map(function (i) { return i.name + ' x' + formatQty(i.qty); }).join(', ');
+      var itemsSummary = o.items.map(function (i) {
+        return i.name + ' x' + formatQty(i.qty) + (i.note ? ' (' + i.note + ')' : '');
+      }).join(', ');
       return (
         '<div class="order-card">' +
         '<div class="order-top"><span>' + escapeHtml(o.orderId) + '</span><span>' + formatCurrency(o.total) + '</span></div>' +
@@ -570,7 +618,8 @@
   function fulfilFormHtml(o) {
     var rows = o.items.map(function (li) {
       return '<tr>' +
-        '<td>' + escapeHtml(li.name) + '</td>' +
+        '<td>' + escapeHtml(li.name) +
+        (li.note ? '<div class="line-note">&#9656; ' + escapeHtml(li.note) + '</div>' : '') + '</td>' +
         '<td class="num">' + formatQty(li.qty) + '</td>' +
         '<td><input type="number" class="supplied-input" data-id="' + escapeHtml(li.id) + '" ' +
         'value="' + formatQty(li.qty) + '" min="0" max="' + li.qty + '" ' +
@@ -827,7 +876,8 @@
       if (invoiced) {
         var short = li.shortQty > 0;
         return '<tr>' +
-          '<td>' + escapeHtml(li.name) + '</td>' +
+          '<td>' + escapeHtml(li.name) +
+          (li.note ? '<div class="line-note">&#9656; ' + escapeHtml(li.note) + '</div>' : '') + '</td>' +
           '<td class="num muted">' + formatQty(li.orderedQty) + '</td>' +
           '<td class="num' + (short ? ' short' : '') + '">' + formatQty(li.qty) + '</td>' +
           '<td>' + escapeHtml(li.unit) + '</td>' +
@@ -835,7 +885,8 @@
           '</tr>';
       }
       return '<tr>' +
-        '<td>' + escapeHtml(li.name) + '</td>' +
+        '<td>' + escapeHtml(li.name) +
+        (li.note ? '<div class="line-note">&#9656; ' + escapeHtml(li.note) + '</div>' : '') + '</td>' +
         '<td class="num">' + formatQty(li.qty) + '</td>' +
         '<td>' + escapeHtml(li.unit) + '</td>' +
         '<td class="num">' + formatCurrency(li.lineTotal) + '</td>' +
