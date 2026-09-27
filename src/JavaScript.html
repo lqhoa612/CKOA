@@ -13,6 +13,7 @@
     deliveryDates: [],
     selectedDate: null,
     cart: {}, // id -> qty
+    filter: { query: '', category: '' },
     kitchen: { pending: [], invoiced: [] },
     admin: { orders: [], restaurants: [], summary: {} },
     openOrderId: null // which order is expanded, for kitchen and admin alike
@@ -57,6 +58,7 @@
       document.getElementById('nav-admin-invoices').classList.remove('hidden');
       switchView('admin');
     } else {
+      buildCategoryFilter();
       renderCatalog();
     }
   }
@@ -128,15 +130,97 @@
   // Catalogue
   // ---------------------------------------------------------------------
 
+  /**
+   * Accents off, lower case, so "pho" finds "Phở" and "Grilled" finds
+   * "grilled". Item names come from the sheet and are typed by hand.
+   */
+  function normalise(text) {
+    return String(text == null ? '' : text)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+      .toLowerCase();
+  }
+
+  function buildCategoryFilter() {
+    var select = document.getElementById('category-filter');
+    var seen = {};
+    var options = ['<option value="">All categories</option>'];
+    state.items.forEach(function (item) {
+      if (seen[item.category]) return;
+      seen[item.category] = true;
+      options.push('<option value="' + escapeHtml(item.category) + '">' +
+                   escapeHtml(item.category) + '</option>');
+    });
+    select.innerHTML = options.join('');
+
+    document.getElementById('item-search').addEventListener('input', function (e) {
+      state.filter.query = e.target.value;
+      renderCatalog();
+    });
+    select.addEventListener('change', function (e) {
+      state.filter.category = e.target.value;
+      renderCatalog();
+    });
+  }
+
+  /** The search looks at the description too: people hunt by ingredient. */
+  function matchesFilter(item) {
+    if (state.filter.category && item.category !== state.filter.category) return false;
+    var q = normalise(state.filter.query).trim();
+    if (!q) return true;
+    return q.split(/\s+/).every(function (word) {
+      return normalise(item.name).indexOf(word) !== -1 ||
+             normalise(item.category).indexOf(word) !== -1 ||
+             normalise(item.description).indexOf(word) !== -1;
+    });
+  }
+
+  function filterIsActive() {
+    return !!(state.filter.category || state.filter.query.trim());
+  }
+
+  /**
+   * A filter that silently hides things is the way people end up thinking the
+   * kitchen stopped selling something, so say how many are hidden and give
+   * them one tap back to the full list.
+   */
+  function renderFilterSummary(shown) {
+    var el = document.getElementById('filter-summary');
+    if (!filterIsActive()) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    el.innerHTML = '<span>Showing ' + shown + ' of ' + state.items.length + ' items</span>' +
+      '<button type="button" class="link-btn" id="clear-filter">Show all</button>';
+    document.getElementById('clear-filter').addEventListener('click', clearFilter);
+  }
+
+  function clearFilter() {
+    state.filter.query = '';
+    state.filter.category = '';
+    document.getElementById('item-search').value = '';
+    document.getElementById('category-filter').value = '';
+    renderCatalog();
+  }
+
   function renderCatalog() {
     var container = document.getElementById('catalog-list');
     if (!state.items.length) {
       container.innerHTML = '<div class="empty-state">No items are available to order right now.</div>';
       return;
     }
+
+    var matches = state.items.filter(matchesFilter);
+    renderFilterSummary(matches.length);
+    if (!matches.length) {
+      container.innerHTML = '<div class="empty-state">Nothing matches that search.<br>' +
+        '<button type="button" class="link-btn" id="empty-clear-filter">Show all items</button></div>';
+      document.getElementById('empty-clear-filter').addEventListener('click', clearFilter);
+      return;
+    }
+
     var byCategory = {};
     var order = [];
-    state.items.forEach(function (item) {
+    matches.forEach(function (item) {
       if (!byCategory[item.category]) {
         byCategory[item.category] = [];
         order.push(item.category);

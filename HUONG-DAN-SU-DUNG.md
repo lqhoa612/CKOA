@@ -72,7 +72,20 @@ Sau đó app nằm trên màn hình chính như một ứng dụng bình thườ
 
 ## Phần B — Đặt hàng
 
-### Bước 1 — Chọn món và số lượng
+### Bước 1 — Tìm món nhanh
+
+Danh sách dài thì cuộn tìm rất mệt. Đầu màn hình có hai công cụ, **dùng chung được với nhau**:
+
+<img src="assets/guide/03c-tim-mon.png" width="330" alt="Ô tìm kiếm đang gõ chữ duck, danh sách còn lại 2 món">
+
+- **Ô tìm kiếm** — gõ vài chữ trong tên món là ra ngay. Gõ được cả **nguyên liệu**: tìm "hoisin" sẽ ra những món có hoisin trong phần giải thích, dù tên món không có chữ đó. Không cần gõ dấu — gõ `pho` vẫn ra `Phở`.
+- **Ô chọn nhóm món** — chọn một nhóm (Cooked Meat, Prepped Vegetables…) để chỉ xem nhóm đó.
+
+Dòng chữ xám bên dưới luôn cho biết **đang hiện bao nhiêu trên tổng bao nhiêu món**, kèm nút **Show all** để quay lại danh sách đầy đủ. Nếu thấy thiếu món, gần như chắc chắn là đang còn bộ lọc — bấm **Show all**.
+
+Lọc **không làm mất số lượng đã chọn**. Món đã bỏ vào giỏ mà bị ẩn đi vẫn nằm nguyên trong giỏ, thanh đỏ dưới cùng vẫn đếm đủ.
+
+### Bước 2 — Chọn món và số lượng
 
 <img src="assets/guide/03-chon-mon.png" width="330" alt="Màn hình danh sách món, BBQ Pork đang để 2.5 kg">
 
@@ -94,7 +107,7 @@ Món nào không có dòng *"in steps of…"* (ví dụ Whole Duck — bán theo
 
 Ở dưới cùng màn hình luôn có thanh đỏ hiện **số món đã chọn** và **tổng tiền**. Bấm **View cart** để xem giỏ hàng.
 
-### Bước 2 — Kiểm tra giỏ hàng và điền thông tin giao hàng
+### Bước 3 — Kiểm tra giỏ hàng và điền thông tin giao hàng
 
 <img src="assets/guide/04-gio-hang.png" width="330" alt="Màn hình Confirm your order với bảng món, ngày giao, địa chỉ và ô ghi chú">
 
@@ -110,7 +123,7 @@ Trên màn hình này:
 > Giao thứ 4 thì phải đặt xong trước 4pm thứ 3. Giao thứ 6 thì trước 4pm thứ 5.
 > Quá giờ, ngày đó sẽ **không còn hiện ra** trong danh sách nữa — bạn chỉ chọn được ngày giao kế tiếp.
 
-### Bước 3 — Bấm **Place order**
+### Bước 4 — Bấm **Place order**
 
 <img src="assets/guide/05-da-gui.png" width="330" alt="Giỏ hàng đã trống và có thông báo đen báo đơn đã gửi kèm mã đơn">
 
@@ -198,6 +211,7 @@ Xuất hoá đơn xong, đơn chuyển từ tab **To fulfil** sang tab **Invoice
 | App hiện **tên nhà hàng khác** | Đăng nhập nhầm email. Xem [Phần D](#phần-d--lỡ-đăng-nhập-nhầm-email). |
 | **Không còn ngày giao nào** để chọn | Đã quá 4pm ngày hôm trước cho cả hai ngày giao gần nhất. Đợi một lát rồi mở lại, hoặc gọi thẳng cho bếp trung tâm nếu gấp. |
 | Ngày giao mình cần **không thấy trong danh sách** | App chỉ hiện 2 ngày gần nhất còn trong hạn. Ngày xa hơn thì đợi đến gần hơn mới đặt được. |
+| Một món **tự nhiên biến mất** khỏi danh sách | Gần như chắc chắn còn bộ lọc đang bật. Bấm **Show all** ở dòng chữ xám đầu danh sách. |
 | Cần món **không có trong danh sách** | Ghi vào ô **Notes for the kitchen** lúc đặt hàng. |
 | Bấm **Place order** mà **không thấy thông báo** | Kiểm tra mạng, rồi vào tab **My orders** xem đơn đã vào chưa. Nếu chưa thấy thì đặt lại. |
 | Giá hiện **$0.00** | Quản lý chưa điền giá cho món đó trong bảng tính. Vẫn đặt hàng bình thường được. |

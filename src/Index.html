@@ -40,6 +40,12 @@
 
     <!-- Catalogue view -->
     <main id="catalog-view">
+      <div class="filter-bar catalog-filter">
+        <input id="item-search" type="search" placeholder="Search items"
+               aria-label="Search items" autocomplete="off">
+        <select id="category-filter" aria-label="Filter by category"></select>
+      </div>
+      <div id="filter-summary" class="filter-summary hidden"></div>
       <div id="catalog-list"></div>
     </main>
 

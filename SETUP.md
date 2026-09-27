@@ -183,6 +183,8 @@ Hai cách lấy link:
 
 Link hỏng hoặc ảnh không tải được thì app **tự ẩn ảnh đi**, không hiện icon ảnh vỡ, món vẫn đặt bình thường.
 
+- Cột `Category` vừa là tiêu đề nhóm trong danh sách, vừa là **nội dung ô chọn nhóm món** ở đầu màn hình đặt hàng — app tự gom các giá trị khác nhau trong cột này, thêm nhóm mới không phải sửa code. Viết đúng chính tả và thống nhất, vì `Cooked Meat` và `Cooked meat` sẽ thành hai nhóm riêng.
+- Người đặt còn **tìm được theo cột `Description`**, nên viết rõ nguyên liệu chính vào đó thì tìm dễ hơn nhiều.
 - Cột `ID` để trống, app sẽ tự sinh mã lần đầu đọc và ghi lại vào sheet — bạn không cần tự quản lý ID.
 - Đây chính là nơi **admin chỉnh sửa danh sách món**: thêm dòng mới, xoá/đặt `Active=FALSE`, sửa giá trực tiếp trong Sheet. App sẽ luôn hiển thị dữ liệu mới nhất, không cần deploy lại.
 
