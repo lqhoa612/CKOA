@@ -392,14 +392,19 @@
   .fulfil-form { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
   .fulfil-form .checkout-table td { vertical-align: middle; }
   .supplied-input {
-    width: 72px;
+    /* Wide enough for a figure typed to the gram, e.g. "2.345". */
+    width: 84px;
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 6px 8px;
     font-family: inherit;
     font-size: 14px;
     text-align: right;
+    color: var(--text);
+    background: #fff;
   }
+  .supplied-input:focus { outline: none; border-color: var(--primary); }
+  .fulfil-hint { margin: 8px 0 0; }
   .fulfil-actions {
     display: flex;
     gap: 16px;

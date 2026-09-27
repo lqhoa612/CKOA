@@ -2,6 +2,10 @@
 (function () {
   'use strict';
 
+  // The kitchen weighs what goes out, so it records to the gram rather than to
+  // the step a restaurant orders in. Matches SUPPLY_STEP in Code.gs.
+  var SUPPLY_STEP = 0.001;
+
   var state = {
     restaurant: null,
     role: '',
@@ -439,8 +443,8 @@
         '<td>' + escapeHtml(li.name) + '</td>' +
         '<td class="num">' + formatQty(li.qty) + '</td>' +
         '<td><input type="number" class="supplied-input" data-id="' + escapeHtml(li.id) + '" ' +
-        'data-step="' + (li.step || 1) + '" value="' + formatQty(li.qty) + '" min="0" ' +
-        'max="' + li.qty + '" step="' + (li.step || 1) + '" inputmode="decimal"></td>' +
+        'value="' + formatQty(li.qty) + '" min="0" max="' + li.qty + '" ' +
+        'step="any" inputmode="decimal"></td>' +
         '<td>' + escapeHtml(li.unit) + '</td>' +
         '</tr>';
     }).join('');
@@ -449,6 +453,8 @@
       '<div class="checkout-table-wrap"><table class="checkout-table"><thead><tr>' +
       '<th>Item</th><th class="num">Ordered</th><th>Supplied</th><th>Unit</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="muted small fulfil-hint">Tap a Supplied box and type the weight off the ' +
+      'scales &mdash; any figure down to 0.001. You cannot bill more than was ordered.</p>' +
       '<div class="fulfil-actions">' +
       '<button class="link-btn supply-none-btn">Set all to 0</button>' +
       '<button class="link-btn supply-all-btn">Supply all as ordered</button>' +
@@ -510,8 +516,7 @@
     var shortCount = 0;
     card.querySelectorAll('.supplied-input').forEach(function (input) {
       var ordered = Number(input.getAttribute('max')) || 0;
-      var step = Number(input.getAttribute('data-step')) || 1;
-      var qty = roundToStep(Math.min(Math.max(0, Number(input.value) || 0), ordered), step);
+      var qty = roundToStep(Math.min(Math.max(0, Number(input.value) || 0), ordered), SUPPLY_STEP);
       if (qty < ordered) shortCount++;
       supplied.push({ id: input.getAttribute('data-id'), qty: qty });
     });

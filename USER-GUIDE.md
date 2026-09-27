@@ -165,7 +165,8 @@ On the **To fulfil** tab, tap **Fulfil this order** on the order you are working
 <img src="assets/guide/en/08-kitchen-invoice.png" width="380" alt="The invoice form: the Ordered column shows what was ordered, the Supplied column what actually went out">
 
 - The **Ordered** column is what the restaurant asked for. The **Supplied** column is **what the kitchen actually sent** — change it if anything was short.
-- You cannot enter more than was ordered. Items sold by weight accept part-units here too (2.5, 1.3…), the same as on the restaurant side.
+- **Type the weight straight into the Supplied box** — no need for `+`/`−`. It takes any figure to three decimal places, so a scale reading of `2.345` kg goes in as `2.345`. It is not limited to the 0.1 steps the restaurant orders in, because real scales never land on a round figure.
+- You cannot enter more than was ordered.
 - Two shortcuts: **Supply all as ordered** and **Set all to 0**.
 - The **Note** box is for explaining why something was short, or what was substituted. It appears on the invoice, where both the accountant and the restaurant can read it.
 - Tap **Issue invoice**. The app asks you to confirm, then emails the invoice to the accountant and the restaurant, with a PDF copy attached.

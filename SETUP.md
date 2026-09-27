@@ -139,12 +139,15 @@ Cách thứ hai tiện khi máy dùng chung, hoặc khi một người vừa có
 | | Sauces & Stocks | Tomato sauce base | L | 9.00 | | TRUE |
 
 - Cột `Price` là **AUD**, nhập số thuần (`8.50`), không kèm ký hiệu `$`. App tự hiển thị thành `$8.50`.
-- Cột `Step` là **bước nhảy số lượng** — món nào đặt được lẻ thì điền vào đây:
-  - **Để trống** (hoặc `1`) = chỉ đặt được số nguyên: 1, 2, 3… Dùng cho Whole Duck và mọi món tính theo con/cái/hộp.
-  - **`0.1`** = đặt được 0.1, 0.5, 1.3, 2.5… Dùng cho các món cooked meat bán theo kg (BBQ Pork, Duck, Beef Tendon, Beef Gravy…).
-  - Điền `0.5` nếu chỉ muốn cho đặt theo nửa đơn vị, `0.25` cho một phần tư.
-  - Trong app, nút `+`/`−` nhảy đúng theo `Step` này; muốn đặt 2.5 thì **gõ thẳng vào ô số lượng** thay vì bấm 25 lần.
-  - Bếp trung tâm khi nhập số lượng thực giao cũng dùng đúng bước nhảy đó, nên invoice không bao giờ ra số lẻ kỳ lạ.
+- Cột `Step` là **bước nhảy số lượng**. **Cột này không bắt buộc** — app tự suy ra từ cột `Unit` khi bỏ trống:
+  - `Unit` là **kg, g, l, ml** (hoặc lít/litre/kilo/gram) → app cho đặt lẻ **0.1**. Các món cooked meat bán theo kg tự động chạy đúng, không cần điền gì.
+  - `Unit` là bất kỳ thứ gì khác (**con**, cái, hộp, bịch…) → chỉ đặt được số nguyên. Whole Duck tự động đúng.
+  - Điền `Step` khi muốn **đè lên** suy đoán đó: `1` để ép một món bán theo kg chỉ đặt được số nguyên, `0.5` cho nửa đơn vị, `0.25` cho một phần tư, `0.001` cho cực lẻ.
+  - Trong app, nút `+`/`−` nhảy đúng theo bước này; muốn đặt 2.5 thì **gõ thẳng vào ô số lượng** thay vì bấm 25 lần.
+
+> **Nếu nút `+`/`−` vẫn nhảy theo 1 với món bán theo kg**, gần như chắc chắn là bản code trên Apps Script chưa được cập nhật. Xem dưới món đó trong app: có dòng *"in steps of 0.1"* nghĩa là app đã nhận đúng; không có dòng đó nghĩa là code cũ. Deploy lại theo mục 4.4.
+
+**Bếp trung tâm nhập số thực giao chính xác hơn.** Ô `Supplied` cho gõ thẳng số đến 3 chữ số thập phân (ví dụ `2.345` kg cân được trên cân), không bị giới hạn theo bước nhảy của món — vì cân thực tế không bao giờ ra đúng bội số của 0.1. Chỉ không được nhập nhiều hơn số đã đặt.
 - Cột `ID` để trống, app sẽ tự sinh mã lần đầu đọc và ghi lại vào sheet — bạn không cần tự quản lý ID.
 - Đây chính là nơi **admin chỉnh sửa danh sách món**: thêm dòng mới, xoá/đặt `Active=FALSE`, sửa giá trực tiếp trong Sheet. App sẽ luôn hiển thị dữ liệu mới nhất, không cần deploy lại.
 
@@ -308,7 +311,7 @@ Màn hình này đọc 500 dòng gần nhất của tab `Orders`. Cần xem xa h
 ## Quản lý vận hành
 
 - **Thêm/xoá/sửa món & giá**: sửa trực tiếp tab `Items`.
-- **Cho một món đặt được số lẻ**: điền `0.1` (hoặc `0.5`) vào cột `Step` của món đó trong tab `Items`. Không cần deploy lại.
+- **Cho một món đặt được số lẻ**: để `Unit` là `kg`/`l` là đủ. Muốn khác đi thì điền `Step` (ví dụ `0.5`, hoặc `1` để ép về số nguyên). Không cần deploy lại.
 - **Thêm nhà hàng mới**: thêm dòng vào tab `Restaurants` với email Google của họ.
 - **Đổi email bếp trung tâm nhận đơn**: sửa `CentralKitchenEmail` trong tab `Settings`.
 - **Đổi hạn chốt đơn**: sửa `OrderCutoffHour` / `OrderCutoffDaysBefore` trong tab `Settings`.

@@ -46,6 +46,11 @@ var ROLE_KITCHEN = 'kitchen';
 var ROLE_ADMIN = 'admin';
 var STATUS_SENT = 'Sent';
 var STATUS_INVOICED = 'Invoiced';
+/**
+ * The kitchen types the weight off the scales, so supplied quantities are
+ * recorded to the gram rather than to the item's ordering step.
+ */
+var SUPPLY_STEP = 0.001;
 
 var PROP_API_URL = 'API_URL';
 var PROP_API_SECRET = 'API_SECRET';
@@ -267,10 +272,23 @@ function parseAmount_(value) {
   return isNaN(n) ? 0 : n;
 }
 
-/** Order step for an item: 1 unless the sheet says otherwise. */
-function parseStep_(value) {
-  var n = parseAmount_(value);
-  return n > 0 ? n : 1;
+/** Units that are weighed or measured out, so a part-unit order makes sense. */
+var DECIMAL_UNITS = ['kg', 'kgs', 'kilo', 'kilos', 'g', 'gram', 'grams',
+                     'l', 'lit', 'lít', 'litre', 'litres', 'liter', 'liters', 'ml'];
+
+/**
+ * Smallest amount an item can be ordered in.
+ *
+ * The Step column decides it when filled in. Left blank, anything sold by
+ * weight or volume splits into tenths: that is what the kitchen actually
+ * wants, and it means the feature works before anyone has touched the sheet.
+ * Whole Duck and friends are sold per item, so their unit keeps them at 1.
+ */
+function stepForItem_(stepValue, unit) {
+  var n = parseAmount_(stepValue);
+  if (n > 0) return n;
+  var u = String(unit == null ? '' : unit).trim().toLowerCase();
+  return DECIMAL_UNITS.indexOf(u) === -1 ? 1 : 0.1;
 }
 
 /** How many decimals a step implies: 0.1 -> 1, 0.25 -> 2, 1 -> 0. */
@@ -372,9 +390,7 @@ function getActiveItems_() {
       name: r.Name,
       unit: r.Unit || '',
       price: parseAmount_(r.Price),
-      // Smallest orderable amount. 1 for whole units, 0.1 for things weighed
-      // out by the bag. Blank means whole units.
-      step: parseStep_(r.Step)
+      step: stepForItem_(r.Step, r.Unit)
     });
   }
   return items;
@@ -530,7 +546,7 @@ function apiIssueInvoice_(user, payload) {
     // Unlisted item means nothing was supplied, not "supply everything".
     var step = li.step || 1;
     var suppliedQty = suppliedById.hasOwnProperty(String(li.id)) ? suppliedById[String(li.id)] : 0;
-    suppliedQty = roundToStep_(suppliedQty, step);
+    suppliedQty = roundToStep_(suppliedQty, SUPPLY_STEP);
     if (suppliedQty > li.qty) suppliedQty = li.qty; // cannot bill more than ordered
     var lineTotal = roundToStep_((Number(li.price) || 0) * suppliedQty, 0.01);
     invoiceTotal += lineTotal;
@@ -543,7 +559,7 @@ function apiIssueInvoice_(user, payload) {
       step: step,
       orderedQty: li.qty,
       qty: suppliedQty,
-      shortQty: roundToStep_(li.qty - suppliedQty, step),
+      shortQty: roundToStep_(li.qty - suppliedQty, SUPPLY_STEP),
       lineTotal: lineTotal
     });
   });

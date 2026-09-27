@@ -165,7 +165,8 @@ Công việc ở đây là **ghi lại số lượng thực sự đã giao**, v�
 <img src="assets/guide/08-bep-xuat-invoice.png" width="380" alt="Bảng xuất hoá đơn: cột Ordered là số đã đặt, cột Supplied là số thực giao">
 
 - Cột **Ordered** là số nhà hàng đặt. Cột **Supplied** là **số bếp thực sự giao** — sửa lại nếu giao thiếu.
-- Không nhập nhiều hơn số đã đặt. Món bán theo ký cũng nhập được số lẻ (2.5, 1.3…) giống bên nhà hàng.
+- **Gõ thẳng số cân được vào ô Supplied**, không cần bấm `+`/`−`. Nhận số lẻ đến 3 chữ số thập phân — ví dụ cân ra `2.345` kg thì nhập đúng `2.345`. Không bị bó theo bước nhảy 0.1 của bên đặt hàng, vì cân thực tế không bao giờ ra tròn.
+- Không nhập nhiều hơn số đã đặt.
 - Hai nút tắt: **Supply all as ordered** (giao đủ hết) và **Set all to 0** (không giao được món nào).
 - Ô **Note** để giải thích vì sao thiếu, hoặc đã thay bằng món gì. Ghi chú này xuất hiện trên hoá đơn, kế toán và nhà hàng đều đọc được.
 - Bấm **Issue invoice**. App sẽ hỏi xác nhận, rồi gửi hoá đơn cho kế toán và nhà hàng qua email, kèm một file PDF để lưu.
