@@ -149,27 +149,51 @@
       html += '<div class="category-block"><div class="category-title">' + escapeHtml(cat) + '</div>';
       byCategory[cat].forEach(function (item) {
         var qty = state.cart[item.id] || 0;
+        var hasDetail = !!(item.description || item.imageUrl);
         html +=
-          '<div class="item-card" data-id="' + item.id + '">' +
+          '<div class="item-card' + (hasDetail ? ' has-detail' : '') + '" data-id="' + escapeHtml(item.id) + '">' +
+          '<div class="item-row">' +
+          (item.imageUrl
+            ? '<img class="item-thumb" src="' + escapeHtml(item.imageUrl) + '" alt="" loading="lazy">'
+            : '') +
           '<div class="item-info">' +
-          '<div class="item-name">' + escapeHtml(item.name) + '</div>' +
+          '<div class="item-name">' + escapeHtml(item.name) +
+          (hasDetail ? '<span class="detail-caret" aria-hidden="true"></span>' : '') + '</div>' +
           '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) +
-          (item.step < 1 ? ' &middot; in steps of ' + formatQty(item.step) : '') + '</div>' +
+          (item.step < 1 ? ' &middot; ' + formatQty(item.step) + ' steps' : '') + '</div>' +
           '</div>' +
           '<div class="qty-control">' +
           '<button class="qty-btn qty-minus' + (qty > 0 ? ' primary' : '') + '" aria-label="Decrease quantity">-</button>' +
           '<input class="qty-input" type="number" inputmode="decimal" min="0" ' +
           'step="' + item.step + '" value="' + formatQty(qty) + '" aria-label="Quantity">' +
           '<button class="qty-btn primary qty-plus" aria-label="Increase quantity">+</button>' +
-          '</div></div>';
+          '</div></div>' +
+          (hasDetail ? itemDetailHtml(item) : '') +
+          '</div>';
       });
       html += '</div>';
     });
     container.innerHTML = html;
 
+    container.querySelectorAll('.item-thumb, .item-photo').forEach(function (img) {
+      img.addEventListener('error', function () { img.classList.add('hidden'); });
+    });
+
     container.querySelectorAll('.item-card').forEach(function (card) {
       var id = card.getAttribute('data-id');
       var input = card.querySelector('.qty-input');
+
+      var info = card.querySelector('.item-info');
+      if (card.classList.contains('has-detail')) {
+        info.setAttribute('role', 'button');
+        info.setAttribute('tabindex', '0');
+        info.addEventListener('click', function () { toggleDetail(card); });
+        info.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDetail(card); }
+        });
+        var thumb = card.querySelector('.item-thumb');
+        if (thumb) thumb.addEventListener('click', function () { toggleDetail(card); });
+      }
 
       card.querySelector('.qty-plus').addEventListener('click', function () { stepQty(card, id, 1); });
       card.querySelector('.qty-minus').addEventListener('click', function () { stepQty(card, id, -1); });
@@ -185,6 +209,22 @@
         input.value = formatQty(setQty(id, input.value));
       });
     });
+  }
+
+  /**
+   * The photo and the description, hidden until the card is opened. Kept out
+   * of the row itself so the list stays scannable on a phone.
+   */
+  function itemDetailHtml(item) {
+    return '<div class="item-detail hidden">' +
+      (item.imageUrl
+        ? '<img class="item-photo" src="' + escapeHtml(item.imageUrl) + '" ' +
+          'alt="' + escapeHtml(item.name) + '" loading="lazy">'
+        : '') +
+      (item.description
+        ? '<p class="item-description">' + escapeHtml(item.description) + '</p>'
+        : '') +
+      '</div>';
   }
 
   function itemById(id) {
@@ -207,6 +247,12 @@
     var next = setQty(id, (state.cart[id] || 0) + direction * step);
     card.querySelector('.qty-input').value = formatQty(next);
     refreshCard(card, id);
+  }
+
+  function toggleDetail(card) {
+    var open = card.classList.toggle('open');
+    card.querySelector('.item-detail').classList.toggle('hidden', !open);
+    card.querySelector('.item-info').setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
   function refreshCard(card, id) {
@@ -456,8 +502,8 @@
       '<p class="muted small fulfil-hint">Tap a Supplied box and type the weight off the ' +
       'scales &mdash; any figure down to 0.001. You cannot bill more than was ordered.</p>' +
       '<div class="fulfil-actions">' +
-      '<button class="link-btn supply-none-btn">Set all to 0</button>' +
-      '<button class="link-btn supply-all-btn">Supply all as ordered</button>' +
+      '<button type="button" class="bulk-btn supply-all-btn">Fill all as ordered</button>' +
+      '<button type="button" class="bulk-btn danger supply-none-btn">Clear all to 0</button>' +
       '</div>' +
       '<label class="field-label" for="kitchen-note">Note for the restaurant and accountant ' +
       '<span class="field-optional">optional</span></label>' +
@@ -487,7 +533,11 @@
 
     container.querySelectorAll('.supply-all-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        btn.closest('.kitchen-card').querySelectorAll('.supplied-input').forEach(function (input) {
+        var inputs = btn.closest('.kitchen-card').querySelectorAll('.supplied-input');
+        if (hasEditedQuantities(inputs) &&
+            !window.confirm('Set every item back to the quantity ordered? ' +
+                            'What you have typed will be replaced.')) return;
+        inputs.forEach(function (input) {
           input.value = formatQty(input.getAttribute('max'));
         });
       });
@@ -495,14 +545,23 @@
 
     container.querySelectorAll('.supply-none-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        if (!window.confirm('Set every item to 0? Use this only when nothing at ' +
+                            'all could be supplied.')) return;
         btn.closest('.kitchen-card').querySelectorAll('.supplied-input').forEach(function (input) {
-          input.value = 0;
+          input.value = '0';
         });
       });
     });
 
     container.querySelectorAll('.issue-invoice-btn').forEach(function (btn) {
       btn.addEventListener('click', function () { submitInvoice(btn); });
+    });
+  }
+
+  /** True once any box differs from the quantity ordered, i.e. work to lose. */
+  function hasEditedQuantities(inputs) {
+    return Array.prototype.some.call(inputs, function (input) {
+      return Number(input.value) !== Number(input.getAttribute('max'));
     });
   }
 

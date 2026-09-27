@@ -272,6 +272,16 @@ function parseAmount_(value) {
   return isNaN(n) ? 0 : n;
 }
 
+/**
+ * Only plain https image links go to the browser. A sheet cell can hold
+ * anything, and javascript: or data: in an <img> would be running whatever
+ * the cell says inside the page.
+ */
+function safeImageUrl_(value) {
+  var url = String(value == null ? '' : value).trim();
+  return /^https:\/\//i.test(url) ? url : '';
+}
+
 /** Units that are weighed or measured out, so a part-unit order makes sense. */
 var DECIMAL_UNITS = ['kg', 'kgs', 'kilo', 'kilos', 'g', 'gram', 'grams',
                      'l', 'lit', 'lít', 'litre', 'litres', 'liter', 'liters', 'ml'];
@@ -390,7 +400,12 @@ function getActiveItems_() {
       name: r.Name,
       unit: r.Unit || '',
       price: parseAmount_(r.Price),
-      step: stepForItem_(r.Step, r.Unit)
+      step: stepForItem_(r.Step, r.Unit),
+      // What is in the bag and what it is for. Shown when the card is opened.
+      description: String(r.Description == null ? '' : r.Description).trim(),
+      // Any https image URL. The browser loads it directly, so it has to be
+      // reachable without signing in to anything.
+      imageUrl: safeImageUrl_(r.ImageUrl)
     });
   }
   return items;

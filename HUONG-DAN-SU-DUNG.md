@@ -78,6 +78,14 @@ Sau đó app nằm trên màn hình chính như một ứng dụng bình thườ
 
 Bấm **+** và **−** để tăng giảm số lượng. Khi một món có số lượng lớn hơn 0, nút **−** sẽ chuyển sang màu đỏ — nhìn là biết ngay mình đã chọn món đó.
 
+**Xem món đó là gì.** Món nào có **mũi tên nhỏ ▾ cạnh tên** là bấm vào tên mở ra được: có ảnh và phần giải thích trong gói gồm gì, sơ chế tới đâu, để được bao lâu. Bấm lần nữa để đóng lại. Món có ảnh còn hiện sẵn **ảnh nhỏ bên trái tên** để dễ nhận ra khi cuộn.
+
+<img src="assets/guide/03b-mo-mon.png" width="330" alt="Một món đang được mở ra, hiện ảnh và phần giải thích bên dưới">
+
+Bấm vào tên món **không làm thay đổi số lượng** — cứ mở ra xem thoải mái.
+
+> Ảnh trong hình chụp này là **ảnh mẫu xám** cho dễ nhìn. Trong app thật đó là ảnh món do quản lý đưa lên. Món nào quản lý chưa đưa ảnh và chưa viết giải thích thì không có mũi tên, bấm vào không mở ra gì.
+
 **Món bán theo ký đặt được số lẻ.** Những món ghi *"in steps of 0.1"* dưới giá (thường là các loại thịt đã nấu) cho phép đặt 0.5 kg, 1.3 kg, 2.5 kg… Với những món này:
 
 > 💡 **Đừng bấm nút + hàng chục lần.** Muốn đặt 2.5 kg thì **bấm thẳng vào ô số lượng và gõ `2.5`**. Nhanh hơn rất nhiều.
@@ -167,7 +175,11 @@ Công việc ở đây là **ghi lại số lượng thực sự đã giao**, v�
 - Cột **Ordered** là số nhà hàng đặt. Cột **Supplied** là **số bếp thực sự giao** — sửa lại nếu giao thiếu.
 - **Gõ thẳng số cân được vào ô Supplied**, không cần bấm `+`/`−`. Nhận số lẻ đến 3 chữ số thập phân — ví dụ cân ra `2.345` kg thì nhập đúng `2.345`. Không bị bó theo bước nhảy 0.1 của bên đặt hàng, vì cân thực tế không bao giờ ra tròn.
 - Không nhập nhiều hơn số đã đặt.
-- Hai nút tắt: **Supply all as ordered** (giao đủ hết) và **Set all to 0** (không giao được món nào).
+- Hai nút tắt ở dưới bảng:
+  - **Fill all as ordered** — điền lại tất cả bằng đúng số đã đặt.
+  - **Clear all to 0** — đặt tất cả về 0, dùng khi không giao được món nào.
+
+  Cả hai đều **hỏi lại trước khi làm** nếu bạn đã gõ số vào rồi, nên lỡ tay bấm cũng không mất công nhập lại.
 - Ô **Note** để giải thích vì sao thiếu, hoặc đã thay bằng món gì. Ghi chú này xuất hiện trên hoá đơn, kế toán và nhà hàng đều đọc được.
 - Bấm **Issue invoice**. App sẽ hỏi xác nhận, rồi gửi hoá đơn cho kế toán và nhà hàng qua email, kèm một file PDF để lưu.
 

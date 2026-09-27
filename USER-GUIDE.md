@@ -78,6 +78,14 @@ The app then sits on your home screen like any other app.
 
 Tap **+** and **−** to change the quantity. Once an item's quantity is above zero, its **−** button turns red, so you can see at a glance what you have chosen.
 
+**See what an item actually is.** Any item with a **small ▾ arrow next to its name** opens up when you tap the name: a photo, and a note on what is in the bag, how far it has been prepped, and how long it keeps. Tap again to close. Items with a photo also show a **small thumbnail to the left of the name**, so they are easy to spot while scrolling.
+
+<img src="assets/guide/en/03b-item-detail.png" width="330" alt="An item opened up, showing its photo and description underneath">
+
+Tapping the name **never changes the quantity** — open them as often as you like.
+
+> The picture in this screenshot is a **grey placeholder**. In the real app that is the item's own photo, added by your manager. Items your manager has not given a photo or a description have no arrow and do not open.
+
 **Items sold by weight can be ordered in part-units.** Items showing *"in steps of 0.1"* under the price (usually the cooked meats) can be ordered as 0.5 kg, 1.3 kg, 2.5 kg and so on. For those items:
 
 > 💡 **Don't tap + dozens of times.** To order 2.5 kg, **tap the quantity box and type `2.5`**. Much faster.
@@ -167,7 +175,11 @@ On the **To fulfil** tab, tap **Fulfil this order** on the order you are working
 - The **Ordered** column is what the restaurant asked for. The **Supplied** column is **what the kitchen actually sent** — change it if anything was short.
 - **Type the weight straight into the Supplied box** — no need for `+`/`−`. It takes any figure to three decimal places, so a scale reading of `2.345` kg goes in as `2.345`. It is not limited to the 0.1 steps the restaurant orders in, because real scales never land on a round figure.
 - You cannot enter more than was ordered.
-- Two shortcuts: **Supply all as ordered** and **Set all to 0**.
+- Two shortcuts below the table:
+  - **Fill all as ordered** — put every row back to the quantity ordered.
+  - **Clear all to 0** — set everything to zero, for when nothing could be supplied.
+
+  Both **ask you to confirm** once you have typed anything in, so a stray tap cannot wipe your work.
 - The **Note** box is for explaining why something was short, or what was substituted. It appears on the invoice, where both the accountant and the restaurant can read it.
 - Tap **Issue invoice**. The app asks you to confirm, then emails the invoice to the accountant and the restaurant, with a PDF copy attached.
 
