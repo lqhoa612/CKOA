@@ -379,13 +379,20 @@ Tài khoản có `Role` = `admin` thấy hai tab, **chỉ đọc, không sửa �
 
 **Tab "Invoices"** — mọi invoice đã xuất, kèm mã invoice, số tiền, và danh sách món giao thiếu nếu có.
 
+Đầu màn hình **"All orders"** còn hiện khung đỏ cảnh báo ô hỏng, nếu có — xem mục *Khi app không đọc được một ô*.
+
 Màn hình này đọc 500 dòng gần nhất của tab `Orders`. Cần xem xa hơn thì mở thẳng Google Sheet.
 
 ## Khi app không đọc được một ô
 
 Các cột tên có đuôi `JSON` (`ItemsJSON`, `SuppliedJSON`, `DraftJSON`) do app ghi. Sửa tay vào đó, dù chỉ thêm một dấu cách, là ô hỏng và **dữ liệu trong ô coi như mất**.
 
-App **không im lặng bỏ qua**. Khi gặp ô không đọc được, nó gửi email tiêu đề `[CKOA] Unreadable cell: …` tới admin, trong đó ghi rõ:
+App **không im lặng bỏ qua**, nhưng **chỉ báo cho admin**. Nhà hàng và bếp không thấy gì cả — họ không sửa được ô trong bảng tính, báo cho họ chỉ là làm phiền.
+
+Admin được báo bằng **hai đường**:
+
+1. **Màn hình "All orders"** hiện một khung đỏ liệt kê mọi ô không đọc được, kèm **số dòng cụ thể** để mở Sheet vào đúng chỗ mà sửa. Không có ô nào hỏng thì khung này không xuất hiện.
+2. **Email** tiêu đề `[CKOA] Unreadable cell: …`, ghi rõ:
 
 - Tab nào, cột nào, **dòng số mấy**
 - Đơn hàng / nhà hàng nào bị ảnh hưởng và hậu quả là gì
@@ -393,13 +400,13 @@ App **không im lặng bỏ qua**. Khi gặp ô không đọc được, nó gử
 
 **Email gửi tối đa 1 lần / 6 tiếng cho mỗi ô.** Không có chốt này thì một ô hỏng sẽ bắn email mỗi lần có người mở app — vừa spam vừa đốt quota gửi mail.
 
-Tuỳ chỗ hỏng mà app xử lý khác nhau:
+Tuỳ chỗ hỏng mà app xử lý khác nhau (cột bên phải là những gì **nhà hàng / bếp** nhìn thấy):
 
 | Ô hỏng | App làm gì |
 |---|---|
-| `Orders!ItemsJSON` khi bếp bấm xuất hoá đơn | **Chặn lại, không cho xuất.** Xuất hoá đơn $0.00 cho một đơn không đọc được thì tệ hơn là báo lỗi |
+| `Orders!ItemsJSON` khi bếp bấm xuất hoá đơn | **Chặn lại, không cho xuất** — báo "đơn này chưa xử lý được, văn phòng đã được thông báo". Đây là chỗ duy nhất người dùng thấy có gì đó không ổn, và là cố ý: xuất hoá đơn $0.00 cho một đơn không đọc được thì tệ hơn nhiều |
 | `Orders!ItemsJSON` / `SuppliedJSON` khi chỉ đang xem | Hiện đơn đó trống, vẫn mở được màn hình |
-| `Drafts!DraftJSON` | Nhà hàng bắt đầu với giỏ trống, **và thấy một dòng đỏ báo danh sách đã lưu không đọc được** |
+| `Drafts!DraftJSON` | Nhà hàng bắt đầu với giỏ trống, không thấy thông báo gì |
 
 ### `AdminEmail` trong tab `Settings`
 
