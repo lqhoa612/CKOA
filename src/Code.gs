@@ -183,6 +183,7 @@ function saveDraft(draft) { return callApi_('saveDraft', draft); }
 
 function doPost(e) {
   try {
+    badCellsThisRun = [];
     var body = JSON.parse(e.postData.contents);
     var secret = PropertiesService.getScriptProperties().getProperty(PROP_API_SECRET);
     if (!secret || body.secret !== secret) {
@@ -584,8 +585,8 @@ function apiIssueInvoice_(user, payload) {
   // Every order is saved with at least one item, so nothing readable here means
   // the cell is damaged. Billing $0.00 against it would be worse than stopping.
   if (!ordered.length) {
-    throw new Error('Order ' + orderId + ' cannot be read from the spreadsheet, so it ' +
-                    'cannot be invoiced. The administrator has been notified.');
+    throw new Error('Order ' + orderId + ' cannot be processed right now. The office ' +
+                    'has been notified - please invoice it later or by hand.');
   }
   if (!ordered.length) throw new Error('Order ' + orderId + ' has no items to invoice.');
 
@@ -657,8 +658,28 @@ function requireAdmin_(user) {
   }
 }
 
+/** Reads every saved list purely to find the ones that no longer parse. */
+function scanDraftsForProblems_() {
+  var sheet = getSheetOrNull_(SHEET_NAMES.DRAFTS);
+  if (!sheet) return;
+  var last = sheet.getLastRow();
+  if (last < 2) return;
+  var values = sheet.getRange(2, 1, last - 1, 2).getValues();
+  values.forEach(function (r, i) {
+    var raw = r[1] == null ? '' : String(r[1]);
+    if (!raw.trim()) return;
+    try {
+      JSON.parse(raw);
+    } catch (err) {
+      reportBadCell_('Drafts!DraftJSON row ' + (i + 2),
+        'Saved list for ' + r[0] + '. That restaurant starts from an empty cart.', raw);
+    }
+  });
+}
+
 function apiAdminOrders_(user) {
   requireAdmin_(user);
+  scanDraftsForProblems_();
 
   var rows = sheetRowsAsObjects_(getSheet_(SHEET_NAMES.ORDERS));
   var orders = rows.slice(-ADMIN_SCAN_ROWS).map(orderRowToObject_);
@@ -675,6 +696,8 @@ function apiAdminOrders_(user) {
 
   return {
     orders: orders,
+    // Only the admin sees these. Restaurants and the kitchen get a working app.
+    dataIssues: badCellsThisRun,
     restaurants: Object.keys(names).sort(),
     summary: {
       orderCount: orders.length,
@@ -730,9 +753,9 @@ function readDraft_(email) {
     reportBadCell_('Drafts!DraftJSON row ' + row,
       'Saved list for ' + email + '. It could not be restored, so whatever they had ' +
       'built up is gone and they are starting from an empty cart.', raw);
-    // The restaurant is told too: losing a week of notes without explanation is
-    // worse than the loss itself.
-    return { cart: {}, itemNotes: {}, notes: '', unreadable: true };
+    // Restaurant staff cannot repair a spreadsheet cell, so they get a working
+    // app and an empty cart. The admin screen and the alert carry the problem.
+    return null;
   }
   if (!draft) return null;
   draft.savedAt = values[1]
@@ -1106,7 +1129,13 @@ function effectiveUserEmail_() {
  * email on every page load, and the send quota is the first thing that breaks
  * at any scale.
  */
+var badCellsThisRun = []; // reset per request in doPost
+
 function reportBadCell_(location, context, raw) {
+  // Recorded even when the email is throttled: the admin screen should show
+  // every problem found on this scan, not just the ones worth emailing again.
+  badCellsThisRun.push({ location: location, context: context });
+
   var key = 'badcell:' + location;
   var cache;
   try {

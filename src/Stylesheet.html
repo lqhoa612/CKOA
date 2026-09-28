@@ -457,12 +457,27 @@
     color: var(--text);
   }
   .draft-banner .link-btn { font-size: 13px; flex: none; }
-  /* Something went wrong, rather than just something to be aware of. */
-  .draft-banner.broken {
+
+  /* Admin only: cells the app could not read on the last scan. */
+  .data-issues {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius);
     background: #fdecea;
-    border-color: var(--primary);
-    align-items: flex-start;
   }
+  .issues-head { font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+  .issues-list { margin: 0; padding-left: 18px; font-size: 13px; }
+  .issues-list li { margin-bottom: 8px; }
+  .issues-list code {
+    font-family: ui-monospace, "DejaVu Sans Mono", monospace;
+    font-size: 12.5px;
+    background: #fff;
+    border: 1px solid #eccfca;
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .issues-foot { margin: 10px 0 0; }
 
   /* A per-item note in the cart. Looks like a hint until it has something in
      it, so a cart full of empty boxes does not read as work to be done. */
