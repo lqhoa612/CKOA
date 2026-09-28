@@ -16,6 +16,7 @@
     itemNotes: {}, // id -> one-off instruction for that item on this order
     filter: { query: '', category: '' },
     draftSavedAt: '', // when the saved list was last written, for the banner
+    draftBroken: false, // the stored list could not be read back
     kitchen: { pending: [], invoiced: [] },
     admin: { orders: [], restaurants: [], summary: {} },
     openOrderId: null // which order is expanded, for kitchen and admin alike
@@ -75,7 +76,14 @@
 
   /** Quantities are re-checked on the way in: the catalogue may have moved on. */
   function restoreDraft(draft) {
-    if (!draft || !draft.cart) return;
+    if (!draft) return;
+    if (draft.unreadable) {
+      // Silently starting from empty would look like the list was never saved.
+      state.draftBroken = true;
+      renderDraftBanner();
+      return;
+    }
+    if (!draft.cart) return;
     Object.keys(draft.cart).forEach(function (id) {
       if (!itemById(id)) return; // item withdrawn since the list was saved
       var qty = setQty(id, draft.cart[id]);
@@ -94,6 +102,21 @@
    */
   function renderDraftBanner() {
     var el = document.getElementById('draft-banner');
+
+    if (state.draftBroken) {
+      el.classList.remove('hidden');
+      el.classList.add('broken');
+      el.innerHTML = '<span><strong>Your saved list could not be loaded.</strong> ' +
+        'It has been reported to the office. Please add your items again.</span>' +
+        '<button type="button" class="link-btn" id="dismiss-broken">Dismiss</button>';
+      document.getElementById('dismiss-broken').addEventListener('click', function () {
+        state.draftBroken = false;
+        renderDraftBanner();
+      });
+      return;
+    }
+
+    el.classList.remove('broken');
     var count = Object.keys(state.cart).length;
     if (!count || !state.draftSavedAt) { el.classList.add('hidden'); return; }
     el.classList.remove('hidden');

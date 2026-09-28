@@ -220,6 +220,7 @@ Once invoiced, the order moves from **To fulfil** to **Invoiced**. Invoices **ca
 | The app shows **a different restaurant** | Wrong email. See [Part D](#part-d--if-you-signed-in-with-the-wrong-email). |
 | **No delivery dates** to choose from | Both of the next delivery dates are past their 4pm cut-off. Check again later, or call the central kitchen if it's urgent. |
 | The delivery date you want **isn't listed** | The app only offers the two nearest dates still open. Dates further out become available closer to the time. |
+| A red **"Your saved list could not be loaded"** line | Your saved list was damaged and could not be read back. The office has already been told automatically — you do not need to call anyone. Tap **Dismiss** and add your items again. |
 | An item has **vanished** from the list | You almost certainly still have a filter on. Tap **Show all** on the grey line at the top of the list. |
 | You need an item **that isn't on the list** | Write it in the **Notes for the kitchen** box when you order. |
 | You tapped **Place order** but **saw no confirmation** | Check your internet connection, then look under **My orders** to see whether it went through. If it isn't there, order again. |
