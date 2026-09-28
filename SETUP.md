@@ -184,13 +184,27 @@ Hai cách lấy link:
    ```
    ⚠️ **Tôi chưa kiểm chứng được cách này** — môi trường của tôi bị chặn không gọi ra `drive.google.com`. Google cũng đã từng đổi cách hoạt động của link này. **Làm thử một món trước**, thấy ảnh hiện đúng thì làm tiếp các món còn lại.
 
-2. **Để ảnh trong repo GitHub** — cách này đã chạy thật (logo của app đang dùng). Bỏ ảnh vào `assets/items/`, push lên, rồi dùng link:
-   ```
-   https://raw.githubusercontent.com/lqhoa612/CKOA/main/assets/items/bbq-pork.jpg
-   ```
-   Chắc chắn chạy, nhưng mỗi lần thêm ảnh phải push git — không tiện cho người không dùng git.
+2. **Để ảnh trong repo GitHub** — cách này đã chạy thật (logo của app đang dùng). Thư mục `assets/items/` **đã tạo sẵn**, hiện có 2 ảnh mẫu:
 
-**Ảnh nên nén trước khi up**, khoảng **600–800px chiều rộng, dưới 150KB**. Ảnh chụp thẳng từ điện thoại thường 3–5MB; để nguyên thì nhà hàng mở app bằng 4G sẽ rất chậm. App có lazy-load (chỉ tải ảnh khi cuộn tới) nhưng không thay được việc nén.
+   | Ảnh | Dán vào cột `ImageUrl` |
+   |---|---|
+   | Vịt | `https://raw.githubusercontent.com/lqhoa612/CKOA/main/assets/items/duck.png` |
+   | Heo | `https://raw.githubusercontent.com/lqhoa612/CKOA/main/assets/items/pig.png` |
+
+   Thêm ảnh mới thì bỏ file vào `assets/items/`, push lên, rồi đổi tên file ở cuối link. Chắc chắn chạy, nhưng mỗi lần thêm ảnh phải push git — không tiện cho người không dùng git.
+
+#### Ảnh nên chuẩn bị thế nào
+
+| | |
+|---|---|
+| **Kích thước** | **600–800px** mỗi chiều. App hiện ảnh nhỏ 36px cạnh tên và ảnh lớn tối đa 320px, nên to hơn 800px là phí băng thông chứ không nét thêm |
+| **Dung lượng** | **dưới 150KB**. Ảnh chụp thẳng từ điện thoại thường 3–5MB — để nguyên thì nhà hàng mở app bằng 4G sẽ rất chậm |
+| **Hình vuông** | Ảnh nhỏ cạnh tên bị cắt thành hình vuông, nên ảnh vuông sẵn thì không bị cắt mất phần quan trọng |
+| **Nền** | Với hình vẽ/icon, **nền trong suốt (PNG)** nhìn đẹp hơn hẳn — nền xám hay trắng sẽ thành một ô vuông nổi rõ trên thẻ trắng của app. Với ảnh chụp món thật thì không cần |
+
+App có lazy-load (chỉ tải ảnh khi cuộn tới) nhưng không thay được việc nén.
+
+> Hai ảnh mẫu trong `assets/items/` đã được xử lý đúng chuẩn này: cắt sát hình, xoá nền thành trong suốt, ép về 600×600, nén bảng màu còn ~20KB mỗi ảnh (từ 78KB và 181KB).
 
 Link hỏng hoặc ảnh không tải được thì app **tự ẩn ảnh đi**, không hiện icon ảnh vỡ, món vẫn đặt bình thường.
 
