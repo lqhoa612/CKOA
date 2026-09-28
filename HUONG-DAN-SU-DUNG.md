@@ -107,6 +107,12 @@ Món nào không có dòng *"in steps of…"* (ví dụ Whole Duck — bán theo
 
 Ở dưới cùng màn hình luôn có thanh đỏ hiện **số món đã chọn** và **tổng tiền**. Bấm **View cart** để xem giỏ hàng.
 
+**Giỏ hàng được giữ lại, không cần đặt hết trong một lần.** Cả tuần lúc nào thấy món nào sắp hết thì mở app bấm vào giỏ luôn, rồi đóng app. Hôm sau mở lại vẫn còn nguyên. Đến ngày đặt thì xem lại một lượt rồi gửi.
+
+Khi mở app mà trong giỏ đã có sẵn đồ, đầu danh sách hiện dòng *"Carried over from …"* cho biết danh sách này lưu từ hôm nào — để anh không bấm thêm lần nữa những món đã bấm rồi. Muốn bỏ hết làm lại thì bấm **Start again**.
+
+Giỏ hàng gắn với **tài khoản**, không gắn với máy: bấm trên điện thoại rồi mở bằng máy tính vẫn thấy đúng danh sách đó. Gửi đơn xong giỏ tự trống để tuần sau bắt đầu lại.
+
 ### Bước 3 — Kiểm tra giỏ hàng và điền thông tin giao hàng
 
 <img src="assets/guide/04-gio-hang.png" width="330" alt="Màn hình Confirm your order với bảng món, ngày giao, địa chỉ và ô ghi chú">

@@ -107,6 +107,12 @@ Items with no *"in steps of…"* line (Whole Duck, for example — sold by the b
 
 The red bar along the bottom always shows **how many items you have chosen** and the **running total**. Tap **View cart** to review the order.
 
+**Your cart is kept for you, so you do not have to do it all in one sitting.** Any time during the week, when you notice something running low, open the app and tap it into the cart, then close the app. It will still be there tomorrow. On ordering day, look it over once and send it.
+
+When you open the app and the cart already has things in it, a line at the top says *"Carried over from …"* with the date it was last added to — so you do not add the same things twice. Tap **Start again** to empty it and start over.
+
+The cart follows your **account**, not your device: tap items in on your phone and they are there when you open it on a computer. Once you place the order the cart empties, ready for next week.
+
 ### Step 3 — Check the cart and fill in the delivery details
 
 <img src="assets/guide/en/04-cart.png" width="330" alt="The Confirm your order screen with the item table, delivery date, address and notes box">

@@ -32,7 +32,8 @@ var SHEET_NAMES = {
   SETTINGS: 'Settings',
   RESTAURANTS: 'Restaurants',
   ITEMS: 'Items',
-  ORDERS: 'Orders'
+  ORDERS: 'Orders',
+  DRAFTS: 'Drafts'
 };
 
 var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
@@ -174,6 +175,7 @@ function getMyOrders() { return callApi_('getMyOrders'); }
 function getKitchenOrders() { return callApi_('getKitchenOrders'); }
 function issueInvoice(payload) { return callApi_('issueInvoice', payload); }
 function getAdminOrders() { return callApi_('getAdminOrders'); }
+function saveDraft(draft) { return callApi_('saveDraft', draft); }
 
 // ===========================================================================
 // API SIDE - runs as the admin, owns the spreadsheet and sends the email
@@ -204,6 +206,7 @@ function doPost(e) {
       case 'getKitchenOrders': data = apiKitchenOrders_(restaurant); break;
       case 'issueInvoice': data = apiIssueInvoice_(restaurant, body.data || {}); break;
       case 'getAdminOrders': data = apiAdminOrders_(restaurant); break;
+      case 'saveDraft': data = apiSaveDraft_(restaurant, body.data || {}); break;
       default: return jsonOutput_({ ok: false, message: 'Unknown action.' });
     }
     return jsonOutput_({ ok: true, data: data });
@@ -329,6 +332,15 @@ function numberOr_(value, fallback) {
 /** Time zone comes from appsscript.json - change it there to change the app. */
 function getTimeZone_() {
   return Session.getScriptTimeZone();
+}
+
+/**
+ * Like getSheet_ but returns null instead of throwing. The saved-list tab is
+ * optional: an admin who has not created it should still get a working app,
+ * just without the list surviving between visits.
+ */
+function getSheetOrNull_(name) {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
 }
 
 function getSheet_(name) {
@@ -657,8 +669,82 @@ function apiOrderPageData_(restaurant) {
     role: restaurant.role,
     // Kitchen and admin accounts do not order, so skip the catalogue work.
     items: restaurant.role ? [] : getActiveItems_(),
-    deliveryDates: restaurant.role ? [] : getUpcomingDeliveryDates_()
+    deliveryDates: restaurant.role ? [] : getUpcomingDeliveryDates_(),
+    // Comes back with the page rather than in a call of its own: the list is
+    // needed to draw the catalogue, so a second round trip would only make
+    // the app slower to open.
+    draft: restaurant.role ? null : readDraft_(restaurant.email)
   };
+}
+
+// ---------------------------------------------------------------------------
+// Saved list - the cart a restaurant builds up between deliveries
+// ---------------------------------------------------------------------------
+
+/** Row number in the Drafts tab for this restaurant, or 0 when it has none. */
+function findDraftRow_(sheet, email) {
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  var emails = sheet.getRange(2, 1, last - 1, 1).getValues();
+  for (var i = 0; i < emails.length; i++) {
+    if (String(emails[i][0]).trim().toLowerCase() === email) return i + 2;
+  }
+  return 0;
+}
+
+function readDraft_(email) {
+  var sheet = getSheetOrNull_(SHEET_NAMES.DRAFTS);
+  if (!sheet) return null;
+  var row = findDraftRow_(sheet, email);
+  if (!row) return null;
+  var values = sheet.getRange(row, 2, 1, 2).getValues()[0];
+  var draft;
+  try {
+    draft = JSON.parse(values[0] || 'null');
+  } catch (err) {
+    return null; // a hand-edited cell should not break the page
+  }
+  if (!draft) return null;
+  draft.savedAt = values[1]
+    ? Utilities.formatDate(new Date(values[1]), getTimeZone_(), 'EEE d MMM')
+    : '';
+  return draft;
+}
+
+/**
+ * payload: { cart: {id: qty}, itemNotes: {id: text}, notes: string }
+ * Writing an empty list clears the row rather than storing "{}".
+ */
+function apiSaveDraft_(restaurant, payload) {
+  if (restaurant.role) throw new Error('Only restaurants keep a saved list.');
+  var sheet = getSheetOrNull_(SHEET_NAMES.DRAFTS);
+  if (!sheet) return { ok: false, message: 'No Drafts tab - see SETUP.md.' };
+
+  var cart = (payload && payload.cart) || {};
+  var isEmpty = !Object.keys(cart).length;
+  var row = findDraftRow_(sheet, restaurant.email);
+
+  if (isEmpty) {
+    if (row) sheet.getRange(row, 2, 1, 2).setValues([['', new Date()]]);
+    return { ok: true, cleared: true };
+  }
+
+  var json = JSON.stringify({
+    cart: cart,
+    itemNotes: (payload && payload.itemNotes) || {},
+    notes: String((payload && payload.notes) || '').slice(0, MAX_NOTES_LENGTH)
+  });
+  if (row) sheet.getRange(row, 2, 1, 2).setValues([[json, new Date()]]);
+  else sheet.appendRow([restaurant.email, json, new Date()]);
+  return { ok: true };
+}
+
+/** Called once an order is on its way, so next week starts from nothing. */
+function clearDraft_(email) {
+  var sheet = getSheetOrNull_(SHEET_NAMES.DRAFTS);
+  if (!sheet) return;
+  var row = findDraftRow_(sheet, email);
+  if (row) sheet.getRange(row, 2, 1, 2).setValues([['', new Date()]]);
 }
 
 // ---------------------------------------------------------------------------
@@ -747,6 +833,9 @@ function apiSubmitOrder_(restaurant, order) {
     STATUS_SENT,
     notes
   ]);
+
+  // The list has become an order, so it should not greet them again next week.
+  clearDraft_(restaurant.email);
 
   return { ok: true, orderId: orderId, total: total };
 }

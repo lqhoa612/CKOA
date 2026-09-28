@@ -441,6 +441,23 @@
   }
   .filter-summary .link-btn { font-size: 13px; }
 
+  /* Says where the items already in the cart came from. Without it, opening
+     the app mid-week and finding things in the cart reads as a fault. */
+  .draft-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: #fdf6f4;
+    border: 1px solid #eccfca;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .draft-banner .link-btn { font-size: 13px; flex: none; }
+
   /* A per-item note in the cart. Looks like a hint until it has something in
      it, so a cart full of empty boxes does not read as work to be done. */
   .note-row td { border-bottom: 1px solid var(--border); padding-top: 0 !important; }

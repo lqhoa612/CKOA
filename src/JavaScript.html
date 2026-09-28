@@ -15,6 +15,7 @@
     cart: {}, // id -> qty
     itemNotes: {}, // id -> one-off instruction for that item on this order
     filter: { query: '', category: '' },
+    draftSavedAt: '', // when the saved list was last written, for the banner
     kitchen: { pending: [], invoiced: [] },
     admin: { orders: [], restaurants: [], summary: {} },
     openOrderId: null // which order is expanded, for kitchen and admin alike
@@ -59,10 +60,88 @@
       document.getElementById('nav-admin-invoices').classList.remove('hidden');
       switchView('admin');
     } else {
+      restoreDraft(data.draft);
       buildCategoryFilter();
       renderCatalog();
+      renderCartBar();
+      draftReady = true;
     }
   }
+
+  // ---------------------------------------------------------------------
+  // Saved list: the cart is built up over several days, so it lives on the
+  // server rather than in this browser. Same list on the phone and the till.
+  // ---------------------------------------------------------------------
+
+  /** Quantities are re-checked on the way in: the catalogue may have moved on. */
+  function restoreDraft(draft) {
+    if (!draft || !draft.cart) return;
+    Object.keys(draft.cart).forEach(function (id) {
+      if (!itemById(id)) return; // item withdrawn since the list was saved
+      var qty = setQty(id, draft.cart[id]);
+      if (qty > 0 && draft.itemNotes && draft.itemNotes[id]) {
+        state.itemNotes[id] = draft.itemNotes[id];
+      }
+    });
+    if (draft.notes) document.getElementById('order-notes').value = draft.notes;
+    state.draftSavedAt = draft.savedAt || '';
+    renderDraftBanner();
+  }
+
+  /**
+   * Without this, opening the app mid-week and seeing items already in the
+   * cart looks like a bug, and people add the same things twice.
+   */
+  function renderDraftBanner() {
+    var el = document.getElementById('draft-banner');
+    var count = Object.keys(state.cart).length;
+    if (!count || !state.draftSavedAt) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    el.innerHTML = '<span>Carried over from ' + escapeHtml(state.draftSavedAt) +
+      ' &middot; ' + itemCountLabel(count) + '</span>' +
+      '<button type="button" class="link-btn" id="discard-draft">Start again</button>';
+    document.getElementById('discard-draft').addEventListener('click', function () {
+      if (!window.confirm('Clear the saved list and start again?')) return;
+      state.cart = {};
+      state.itemNotes = {};
+      state.draftSavedAt = '';
+      document.getElementById('order-notes').value = '';
+      saveDraftSoon();
+      renderCatalog();
+      renderCartBar();
+      renderDraftBanner();
+    });
+  }
+
+  /**
+   * Saving on every tap of + would be a request per tap. Wait until they have
+   * stopped, then send the whole list once.
+   */
+  var draftTimer = null;
+  var draftReady = false; // drawing the restored list must not save it straight back
+  function saveDraftSoon() {
+    if (!draftReady) return;
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(saveDraftNow, 2000);
+  }
+
+  function saveDraftNow() {
+    clearTimeout(draftTimer);
+    if (state.role) return; // kitchen and admin have no list
+    google.script.run
+      .withSuccessHandler(function () {})
+      .withFailureHandler(function () {}) // a failed save must not interrupt ordering
+      .saveDraft({
+        cart: state.cart,
+        itemNotes: state.itemNotes,
+        notes: document.getElementById('order-notes').value
+      });
+  }
+
+  // Leaving the page is the last chance to keep what they just added.
+  window.addEventListener('pagehide', function () {
+    if (draftTimer) saveDraftNow();
+  });
 
   /** Stays hidden when no logo is configured, or when the URL fails to load. */
   function showLogo(url) {
@@ -383,6 +462,8 @@
   }
 
   function renderCartBar() {
+    saveDraftSoon();
+    renderDraftBanner();
     var lines = cartLines();
     var bar = document.getElementById('cart-bar');
     if (!lines.length) { bar.classList.add('hidden'); return; }
@@ -394,6 +475,8 @@
   // ---------------------------------------------------------------------
   // Checkout modal
   // ---------------------------------------------------------------------
+
+  document.getElementById('order-notes').addEventListener('input', saveDraftSoon);
 
   document.getElementById('checkout-btn').addEventListener('click', openCheckout);
   document.getElementById('close-checkout').addEventListener('click', closeCheckout);
@@ -427,6 +510,7 @@
         if (text) state.itemNotes[input.getAttribute('data-id')] = text;
         else delete state.itemNotes[input.getAttribute('data-id')];
         input.classList.toggle('empty', !text);
+        saveDraftSoon();
       });
     });
     document.getElementById('checkout-total').textContent = formatCurrency(cartTotal());
@@ -488,8 +572,11 @@
         btn.disabled = false;
         btn.textContent = 'Place order';
         if (!result.ok) { showOrderError(result.message || 'Something went wrong.'); return; }
+        clearTimeout(draftTimer);
+        draftTimer = null;
         state.cart = {};
         state.itemNotes = {};
+        state.draftSavedAt = '';
         document.getElementById('order-notes').value = '';
         closeCheckout();
         renderCatalog();

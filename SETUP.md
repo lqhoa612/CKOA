@@ -209,6 +209,21 @@ Tìm kiếm vẫn gộp chúng lại: gõ `shirt` ra cả ba dòng.
 
 - Đây chính là nơi **admin chỉnh sửa danh sách món**: thêm dòng mới, xoá/đặt `Active=FALSE`, sửa giá trực tiếp trong Sheet. App sẽ luôn hiển thị dữ liệu mới nhất, không cần deploy lại.
 
+### Tab `Drafts` (danh sách đang ghi dở — app tự ghi, bạn chỉ cần tạo header)
+
+| RestaurantEmail | DraftJSON | UpdatedAt |
+|---|---|---|
+
+Chỉ cần tạo đúng 3 ô header này, để trống phần dưới. App tự thêm và cập nhật dòng.
+
+Đây là chỗ giữ **giỏ hàng đang làm dở** của từng nhà hàng. Cả tuần ai thấy món nào sắp hết thì mở app bấm vào giỏ, app tự lưu sau mỗi lần sửa khoảng 2 giây. Đến ngày đặt thì mở ra, mọi thứ vẫn còn nguyên. Gửi đơn xong app tự xoá để tuần sau bắt đầu sạch.
+
+Giỏ hàng gắn với **tài khoản** chứ không gắn với máy — điện thoại, máy tính, máy nào mở cũng thấy cùng một danh sách. Nhân viên trong cùng một nhà hàng dùng chung tài khoản nên dùng chung danh sách; ai cũng thêm vào được.
+
+> **Tab này không bắt buộc.** Chưa tạo thì app vẫn chạy bình thường, chỉ là giỏ hàng không được lưu lại giữa các lần mở.
+
+Cột `DraftJSON` là dữ liệu máy đọc, **đừng sửa tay**. Nếu ô đó bị hỏng, app bỏ qua và coi như giỏ trống chứ không báo lỗi.
+
 ### Tab `Orders` (log, để app tự ghi — bạn chỉ cần tạo header)
 
 | OrderID | Timestamp | RestaurantEmail | RestaurantName | OrdererName | DeliveryDate | DeliveryAddress | ItemsJSON | Total | Status | Notes | SuppliedJSON | InvoiceRef | InvoiceTotal | InvoicedAt | KitchenNote |
@@ -373,6 +388,7 @@ Màn hình này đọc 500 dòng gần nhất của tab `Orders`. Cần xem xa h
 - **Thêm nhà hàng mới**: thêm dòng vào tab `Restaurants` với email Google của họ.
 - **Đổi email bếp trung tâm nhận đơn**: sửa `CentralKitchenEmail` trong tab `Settings`.
 - **Đổi hạn chốt đơn**: sửa `OrderCutoffHour` / `OrderCutoffDaysBefore` trong tab `Settings`.
+- **Xoá giỏ hàng đang lưu dở của một nhà hàng**: xoá nội dung ô `DraftJSON` ở dòng của họ trong tab `Drafts`.
 - **Lịch sử đơn hàng**: xem trực tiếp tab `Orders`, hoặc trong app mục "Đơn đã đặt" (mỗi nhà hàng chỉ thấy đơn của mình).
 
 ## Ghi chú kỹ thuật
