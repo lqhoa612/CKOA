@@ -262,7 +262,10 @@ function getConfig_() {
     // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
     // of the delivery date. Default: 4pm the day before.
     orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
-    orderCutoffDaysBefore: numberOr_(config.OrderCutoffDaysBefore, 1)
+    orderCutoffDaysBefore: numberOr_(config.OrderCutoffDaysBefore, 1),
+    // Where data-corruption alerts go. Defaults to whoever owns the script,
+    // so the alerts work without anyone configuring anything.
+    adminEmail: String(config.AdminEmail || '').trim() || effectiveUserEmail_()
   };
 }
 
@@ -502,11 +505,19 @@ function columnNumber_(headers, name) {
   return i + 1;
 }
 
-function parseItemsJson_(value) {
+/**
+ * `where` names the cell for the alert, e.g. "Orders!ItemsJSON row 42".
+ * Passing it is what turns an unreadable cell from silent loss into a message.
+ */
+function parseItemsJson_(value, where, context) {
+  var raw = value == null ? '' : String(value);
   try {
-    var parsed = JSON.parse(value || '[]');
-    return Object.prototype.toString.call(parsed) === '[object Array]' ? parsed : [];
+    var parsed = JSON.parse(raw || '[]');
+    if (Object.prototype.toString.call(parsed) === '[object Array]') return parsed;
+    if (raw.trim()) reportBadCell_(where || 'Orders', (context || '') + ' (not a list)', raw);
+    return [];
   } catch (err) {
+    if (raw.trim()) reportBadCell_(where || 'Orders', context || '', raw);
     return [];
   }
 }
@@ -520,8 +531,12 @@ function orderRowToObject_(r) {
     ordererName: r.OrdererName,
     deliveryDate: r.DeliveryDate,
     deliveryAddress: r.DeliveryAddress,
-    items: parseItemsJson_(r.ItemsJSON),
-    supplied: parseItemsJson_(r.SuppliedJSON),
+    items: parseItemsJson_(r.ItemsJSON, 'Orders!ItemsJSON row ' + r._row,
+      'Order ' + r.OrderID + ' from ' + r.RestaurantName + '. Its items cannot be read, ' +
+      'so the order shows as empty on the kitchen and admin screens.'),
+    supplied: parseItemsJson_(r.SuppliedJSON, 'Orders!SuppliedJSON row ' + r._row,
+      'Order ' + r.OrderID + ' from ' + r.RestaurantName + '. The invoiced quantities ' +
+      'cannot be read, so the invoice detail shows as empty.'),
     total: r.Total,
     status: r.Status,
     notes: String(r.Notes || ''),
@@ -562,7 +577,16 @@ function apiIssueInvoice_(user, payload) {
     throw new Error('Order ' + orderId + ' has already been invoiced as ' + (match.InvoiceRef || 'an invoice') + '.');
   }
 
-  var ordered = parseItemsJson_(match.ItemsJSON);
+  var ordered = parseItemsJson_(match.ItemsJSON, 'Orders!ItemsJSON row ' + match._row,
+    'Order ' + orderId + '. The kitchen tried to invoice it and was stopped: billing ' +
+    '$0.00 against an unreadable order would be worse than refusing. This order cannot ' +
+    'be invoiced until the cell is repaired.');
+  // Every order is saved with at least one item, so nothing readable here means
+  // the cell is damaged. Billing $0.00 against it would be worse than stopping.
+  if (!ordered.length) {
+    throw new Error('Order ' + orderId + ' cannot be read from the spreadsheet, so it ' +
+                    'cannot be invoiced. The administrator has been notified.');
+  }
   if (!ordered.length) throw new Error('Order ' + orderId + ' has no items to invoice.');
 
   var suppliedById = {};
@@ -698,11 +722,17 @@ function readDraft_(email) {
   var row = findDraftRow_(sheet, email);
   if (!row) return null;
   var values = sheet.getRange(row, 2, 1, 2).getValues()[0];
+  var raw = values[0] == null ? '' : String(values[0]);
   var draft;
   try {
-    draft = JSON.parse(values[0] || 'null');
+    draft = JSON.parse(raw || 'null');
   } catch (err) {
-    return null; // a hand-edited cell should not break the page
+    reportBadCell_('Drafts!DraftJSON row ' + row,
+      'Saved list for ' + email + '. It could not be restored, so whatever they had ' +
+      'built up is gone and they are starting from an empty cart.', raw);
+    // The restaurant is told too: losing a week of notes without explanation is
+    // worse than the loss itself.
+    return { cart: {}, itemNotes: {}, notes: '', unreadable: true };
   }
   if (!draft) return null;
   draft.savedAt = values[1]
@@ -1057,6 +1087,68 @@ function formatQty_(n) {
   var num = Number(n);
   if (isNaN(num)) num = 0;
   return String(Math.round(num * 1000) / 1000);
+}
+
+function effectiveUserEmail_() {
+  try {
+    return Session.getEffectiveUser().getEmail() || '';
+  } catch (err) {
+    return '';
+  }
+}
+
+/**
+ * A cell the app cannot read is silent data loss: a restaurant's saved list
+ * disappears, or an order turns up with no items on it. Nobody would ever
+ * notice from inside the app, so the admin gets told.
+ *
+ * Throttled per location for six hours. Without that, one bad cell sends an
+ * email on every page load, and the send quota is the first thing that breaks
+ * at any scale.
+ */
+function reportBadCell_(location, context, raw) {
+  var key = 'badcell:' + location;
+  var cache;
+  try {
+    cache = CacheService.getScriptCache();
+    if (cache.get(key)) return; // already reported recently
+  } catch (err) {
+    cache = null;
+  }
+
+  var to;
+  try {
+    to = getConfig_().adminEmail;
+  } catch (err) {
+    to = effectiveUserEmail_();
+  }
+  if (!to) return;
+
+  var sample = String(raw == null ? '' : raw).slice(0, 500);
+  var lines = [
+    'CKOA could not read a cell in the spreadsheet.',
+    '',
+    'Where:   ' + location,
+    'Details: ' + context,
+    '',
+    'What this means is in the Details line above. Either way the data in that',
+    'cell is lost unless it is repaired.',
+    '',
+    'Most likely cause: the cell was edited by hand. Columns ending in JSON are',
+    'written by the app and are not meant to be edited.',
+    '',
+    'Cell content (first 500 characters):',
+    sample || '(empty)',
+    '',
+    'You will not be told about this same cell again for 6 hours.'
+  ];
+
+  try {
+    GmailApp.sendEmail(to, '[CKOA] Unreadable cell: ' + location, lines.join('\n'));
+    if (cache) cache.put(key, '1', 21600); // 6 hours, the cache maximum
+  } catch (err) {
+    Logger.log('Could not send bad-cell alert: ' + err);
+  }
 }
 
 /** 16 -> "4pm", 9 -> "9am", 0 -> "12am". */

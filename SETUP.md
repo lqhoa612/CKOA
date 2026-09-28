@@ -222,7 +222,7 @@ Giỏ hàng gắn với **tài khoản** chứ không gắn với máy — đi�
 
 > **Tab này không bắt buộc.** Chưa tạo thì app vẫn chạy bình thường, chỉ là giỏ hàng không được lưu lại giữa các lần mở.
 
-Cột `DraftJSON` là dữ liệu máy đọc, **đừng sửa tay**. Nếu ô đó bị hỏng, app bỏ qua và coi như giỏ trống chứ không báo lỗi.
+Cột `DraftJSON` là dữ liệu máy đọc, **đừng sửa tay**. Ô hỏng thì app **gửi email báo cho admin** — xem mục dưới.
 
 ### Tab `Orders` (log, để app tự ghi — bạn chỉ cần tạo header)
 
@@ -380,6 +380,34 @@ Tài khoản có `Role` = `admin` thấy hai tab, **chỉ đọc, không sửa �
 **Tab "Invoices"** — mọi invoice đã xuất, kèm mã invoice, số tiền, và danh sách món giao thiếu nếu có.
 
 Màn hình này đọc 500 dòng gần nhất của tab `Orders`. Cần xem xa hơn thì mở thẳng Google Sheet.
+
+## Khi app không đọc được một ô
+
+Các cột tên có đuôi `JSON` (`ItemsJSON`, `SuppliedJSON`, `DraftJSON`) do app ghi. Sửa tay vào đó, dù chỉ thêm một dấu cách, là ô hỏng và **dữ liệu trong ô coi như mất**.
+
+App **không im lặng bỏ qua**. Khi gặp ô không đọc được, nó gửi email tiêu đề `[CKOA] Unreadable cell: …` tới admin, trong đó ghi rõ:
+
+- Tab nào, cột nào, **dòng số mấy**
+- Đơn hàng / nhà hàng nào bị ảnh hưởng và hậu quả là gì
+- 500 ký tự đầu của nội dung ô, để đối chiếu xem hỏng kiểu gì
+
+**Email gửi tối đa 1 lần / 6 tiếng cho mỗi ô.** Không có chốt này thì một ô hỏng sẽ bắn email mỗi lần có người mở app — vừa spam vừa đốt quota gửi mail.
+
+Tuỳ chỗ hỏng mà app xử lý khác nhau:
+
+| Ô hỏng | App làm gì |
+|---|---|
+| `Orders!ItemsJSON` khi bếp bấm xuất hoá đơn | **Chặn lại, không cho xuất.** Xuất hoá đơn $0.00 cho một đơn không đọc được thì tệ hơn là báo lỗi |
+| `Orders!ItemsJSON` / `SuppliedJSON` khi chỉ đang xem | Hiện đơn đó trống, vẫn mở được màn hình |
+| `Drafts!DraftJSON` | Nhà hàng bắt đầu với giỏ trống, **và thấy một dòng đỏ báo danh sách đã lưu không đọc được** |
+
+### `AdminEmail` trong tab `Settings`
+
+| Key | Value |
+|---|---|
+| `AdminEmail` | `ban@example.com` |
+
+**Không bắt buộc.** Để trống thì email cảnh báo gửi về chính tài khoản Google sở hữu Sheet và script — tức là anh. Chỉ cần điền khi muốn gửi tới địa chỉ khác, hoặc thêm người khác cùng nhận.
 
 ## Quản lý vận hành
 

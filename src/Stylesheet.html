@@ -457,6 +457,12 @@
     color: var(--text);
   }
   .draft-banner .link-btn { font-size: 13px; flex: none; }
+  /* Something went wrong, rather than just something to be aware of. */
+  .draft-banner.broken {
+    background: #fdecea;
+    border-color: var(--primary);
+    align-items: flex-start;
+  }
 
   /* A per-item note in the cart. Looks like a hint until it has something in
      it, so a cart full of empty boxes does not read as work to be done. */

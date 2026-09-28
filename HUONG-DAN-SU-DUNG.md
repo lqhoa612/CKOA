@@ -220,6 +220,7 @@ Xuất hoá đơn xong, đơn chuyển từ tab **To fulfil** sang tab **Invoice
 | App hiện **tên nhà hàng khác** | Đăng nhập nhầm email. Xem [Phần D](#phần-d--lỡ-đăng-nhập-nhầm-email). |
 | **Không còn ngày giao nào** để chọn | Đã quá 4pm ngày hôm trước cho cả hai ngày giao gần nhất. Đợi một lát rồi mở lại, hoặc gọi thẳng cho bếp trung tâm nếu gấp. |
 | Ngày giao mình cần **không thấy trong danh sách** | App chỉ hiện 2 ngày gần nhất còn trong hạn. Ngày xa hơn thì đợi đến gần hơn mới đặt được. |
+| Dòng đỏ **"Your saved list could not be loaded"** | Danh sách anh lưu bị hỏng và không đọc lại được. Văn phòng đã tự động được báo, anh không phải gọi ai. Bấm **Dismiss** rồi chọn lại món. |
 | Một món **tự nhiên biến mất** khỏi danh sách | Gần như chắc chắn còn bộ lọc đang bật. Bấm **Show all** ở dòng chữ xám đầu danh sách. |
 | Cần món **không có trong danh sách** | Ghi vào ô **Notes for the kitchen** lúc đặt hàng. |
 | Bấm **Place order** mà **không thấy thông báo** | Kiểm tra mạng, rồi vào tab **My orders** xem đơn đã vào chưa. Nếu chưa thấy thì đặt lại. |
