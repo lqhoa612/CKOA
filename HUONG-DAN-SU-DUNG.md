@@ -27,6 +27,15 @@ App này thay cho việc nhắn tin hay gọi điện đặt hàng: bạn chọn
 
 Phần này **chỉ làm một lần duy nhất** cho mỗi điện thoại / máy tính. Những lần sau mở link là vào thẳng app.
 
+> 🚫 **Đừng mở link thẳng từ Messenger, Facebook, Zalo hay Instagram.**
+> Các app chat mở link bằng trình duyệt riêng bên trong app, mà **Google không cho hiện màn hình cấp quyền ở đó** — nên app sẽ không bao giờ chạy được dù bấm link bao nhiêu lần.
+>
+> Hãy mở bằng **Safari (iPhone)** hoặc **Chrome (Android)**:
+> - **iPhone**: bấm nút **⋯** góc trên bên phải → **Open in Safari**
+> - **Android**: bấm nút **⋮** góc trên bên phải → **Open in Chrome**
+>
+> Chỉ cần làm vậy **một lần cho mỗi điện thoại**. Cấp quyền xong rồi thì sau đó bấm link từ Messenger cũng vào được bình thường.
+
 Lần đầu Google sẽ hỏi vài câu và hiện **một màn hình cảnh báo trông khá đáng sợ**. Đây là chuyện bình thường với app do công ty tự viết — Google chưa "kiểm định" nó, chứ app không có gì nguy hiểm. Cứ làm theo 4 bước dưới đây.
 
 > Bốn hình ở phần này là **hình minh hoạ** vẽ lại cho dễ nhìn. Màn hình thật của Google có thể khác một chút về chữ nghĩa và màu sắc, nhưng vị trí các nút thì giống vậy.
@@ -215,6 +224,8 @@ Xuất hoá đơn xong, đơn chuyển từ tab **To fulfil** sang tab **Invoice
 
 | Hiện tượng | Cách xử lý |
 |---|---|
+| Khung đỏ **"Please open this in your normal browser"** | Anh đang mở từ trong Messenger/Facebook/Zalo. Bấm **⋯** (iPhone) hoặc **⋮** (Android) ở góc trên bên phải → chọn mở bằng Safari/Chrome. Chỉ làm một lần cho mỗi máy. |
+| Khung đỏ **"One more step: approve the app"** | Tài khoản này chưa cấp quyền cho app. Đóng trang, mở lại link, rồi làm theo [Phần A bước 2–4](#bước-2--gặp-màn-hình-cảnh-báo-bấm-advanced). |
 | Màn hình cảnh báo **"Google hasn't verified this app"** | Bình thường ở lần đầu. Làm theo [Phần A bước 2–4](#bước-2--gặp-màn-hình-cảnh-báo-bấm-advanced). |
 | Báo lỗi **không nhận ra email của bạn** | Bạn đang đăng nhập nhầm tài khoản, hoặc email này chưa được quản lý thêm vào danh sách. Xem [Phần D](#phần-d--lỡ-đăng-nhập-nhầm-email), nếu vẫn lỗi thì báo quản lý. |
 | App hiện **tên nhà hàng khác** | Đăng nhập nhầm email. Xem [Phần D](#phần-d--lỡ-đăng-nhập-nhầm-email). |

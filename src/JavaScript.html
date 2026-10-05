@@ -26,6 +26,9 @@
   // so the first call both identifies them and loads their catalogue.
   // ---------------------------------------------------------------------
 
+  // No warning is shown up front on purpose. Plenty of people open the link
+  // from a chat app and it works, because they approved it elsewhere once.
+  // Warning them before anything has failed would flash a red box at everyone.
   window.onload = function () {
     google.script.run
       .withSuccessHandler(onLoaded)
@@ -152,15 +155,82 @@
     img.src = url;
   }
 
+  /**
+   * Chat apps open links in their own embedded browser. Google refuses to run
+   * its permission screen inside one, so the app can never finish setting
+   * itself up there however many times someone taps the link.
+   */
+  function inAppBrowser() {
+    var ua = navigator.userAgent || '';
+    if (/FBAN|FBAV|FB_IAB|FBIOS|Messenger/i.test(ua)) return 'Messenger or Facebook';
+    if (/Instagram/i.test(ua)) return 'Instagram';
+    if (/Zalo/i.test(ua)) return 'Zalo';
+    if (/MicroMessenger/i.test(ua)) return 'WeChat';
+    if (/\bLine\//i.test(ua)) return 'LINE';
+    if (/musical_ly|BytedanceWebview|TikTok/i.test(ua)) return 'TikTok';
+    return '';
+  }
+
+  /** Where the "open in a real browser" command lives on each platform. */
+  function openInBrowserHint() {
+    var ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua)) {
+      return 'Tap the <strong>&hellip;</strong> button at the top right of this ' +
+        'window, then choose <strong>Open in Safari</strong> (or <strong>Open in ' +
+        'browser</strong>).';
+    }
+    if (/Android/i.test(ua)) {
+      return 'Tap the <strong>&#8942;</strong> button at the top right of this ' +
+        'window, then choose <strong>Open in Chrome</strong> (or <strong>Open in ' +
+        'external browser</strong>).';
+    }
+    return 'Copy the link below and paste it into Safari, Chrome or Edge.';
+  }
+
+  function browserWarningHtml(appName) {
+    var url = (window.CKOA_APP_URL || '').trim();
+    return '<div class="browser-warning">' +
+      '<div class="bw-title">Please open this in your normal browser</div>' +
+      '<p>You are inside the <strong>' + escapeHtml(appName) + '</strong> built-in ' +
+      'browser. Google will not show its permission screen here, so the app cannot ' +
+      'finish setting up.</p>' +
+      '<p>' + openInBrowserHint() + '</p>' +
+      (url ? '<div class="url-box">' + escapeHtml(url) + '</div>' : '') +
+      '<p class="muted small">You only have to do this once per phone. After you ' +
+      'have approved it in a normal browser, the link works from anywhere.</p>' +
+      '</div>';
+  }
+
   function showStartupError(msg) {
     document.getElementById('startup-message').classList.add('hidden');
     var el = document.getElementById('startup-error');
+    var panel = document.getElementById('startup-account');
+
+    // The server flags the one failure that is not really an error: this
+    // account has simply never been through Google's permission screen.
+    if (String(msg).indexOf('NEEDS_AUTHORISATION') !== -1) {
+      var app = inAppBrowser();
+      el.classList.add('hidden');
+      panel.innerHTML = app
+        ? browserWarningHtml(app)
+        : '<div class="browser-warning">' +
+          '<div class="bw-title">One more step: approve the app</div>' +
+          '<p>This Google account has not approved the app yet. Close this page, ' +
+          'open the link again, and when Google asks, choose <strong>Advanced</strong> ' +
+          '&rarr; <strong>Go to &hellip;</strong> &rarr; <strong>Allow</strong>.</p>' +
+          '<p class="muted small">If you keep landing back here, you are probably ' +
+          'inside a chat app\'s built-in browser. Open the link in Safari or Chrome ' +
+          'instead.</p>' +
+          '</div>' + accountPanelHtml();
+      panel.classList.remove('hidden');
+      return;
+    }
+
     el.textContent = msg;
     el.classList.remove('hidden');
 
     // Signing in with the wrong account lands here and never reaches the app,
     // so the way out has to be on this screen rather than behind the nav.
-    var panel = document.getElementById('startup-account');
     panel.innerHTML = accountPanelHtml();
     panel.classList.remove('hidden');
   }

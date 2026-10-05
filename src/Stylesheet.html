@@ -367,6 +367,25 @@
   .order-card .order-top { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 4px; }
   .order-card .order-items { font-size: 13px; color: var(--muted); }
   .account-line { font-size: 14px; line-height: 1.5; margin-bottom: 4px; }
+  /* Shown when the link was opened inside a chat app's built-in browser. */
+  .browser-warning {
+    text-align: left;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius);
+    background: #fdf6f4;
+    padding: 14px 16px;
+    margin-top: 4px;
+  }
+  .browser-warning .bw-title {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+  .browser-warning p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
+  .browser-warning p:last-child { margin-bottom: 0; }
+  .browser-warning .url-box { margin: 10px 0; }
+
   .url-box {
     background: var(--bg);
     border: 1px solid var(--border);

@@ -161,13 +161,26 @@ function callApi_(action, data) {
     throw new Error('We could not tell which Google account you are signed in with. Please reload the page and try again.');
   }
 
-  var response = UrlFetchApp.fetch(url, {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify({ secret: secret, email: email, action: action, data: data || {} }),
-    muteHttpExceptions: true,
-    followRedirects: true
-  });
+  var response;
+  try {
+    response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ secret: secret, email: email, action: action, data: data || {} }),
+      muteHttpExceptions: true,
+      followRedirects: true
+    });
+  } catch (err) {
+    // Reached when this account never granted the script its permissions.
+    // Google refuses to run its consent screen inside an embedded browser
+    // (Messenger, Facebook, Instagram, Zalo), so anyone who only ever opens
+    // the link from a chat app lands here and never gets asked to approve.
+    var text = String(err && err.message ? err.message : err);
+    if (/permission|script\.external_request|authoriz/i.test(text)) {
+      throw new Error('NEEDS_AUTHORISATION');
+    }
+    throw err;
+  }
 
   var result;
   try {
