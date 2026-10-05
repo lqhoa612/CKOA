@@ -98,6 +98,8 @@ Lọc **không làm mất số lượng đã chọn**. Món đã bỏ vào giỏ
 
 <img src="assets/guide/03-chon-mon.png" width="330" alt="Màn hình danh sách món, BBQ Pork đang để 2.5 kg">
 
+> 💲 **Hiện tại app không hiện giá tiền.** Quản lý đã tắt phần đó đi. Vài hình chụp trong tài liệu này vẫn còn thấy giá — cứ bỏ qua, phần còn lại vẫn đúng. Khi nào bật lại thì giá hiện ở đúng những chỗ đó.
+
 Bấm **+** và **−** để tăng giảm số lượng. Khi một món có số lượng lớn hơn 0, nút **−** sẽ chuyển sang màu đỏ — nhìn là biết ngay mình đã chọn món đó.
 
 **Xem món đó là gì.** Món nào có **mũi tên nhỏ ▾ cạnh tên** là bấm vào tên mở ra được: có ảnh và phần giải thích trong gói gồm gì, sơ chế tới đâu, để được bao lâu. Bấm lần nữa để đóng lại. Món có ảnh còn hiện sẵn **ảnh nhỏ bên trái tên** để dễ nhận ra khi cuộn.
