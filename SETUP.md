@@ -27,10 +27,24 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 | OrderCutoffDaysBefore | 1 |
 | DeliveryDays | Tuesday, Friday |
 | ThirdPartyCategories | Fortuna |
+| ShowPrices | FALSE |
 
 `InvoiceEmail` là nơi nhận invoice do bếp xuất (thường là kế toán). Để trống thì dùng `CentralKitchenEmail`. Nhà hàng luôn được CC.
 
 `KitchenName` là tên bên bán hiện trên invoice. Để trống thì dùng `AppTitle`.
+
+### `ShowPrices` — bật/tắt hiển thị giá tiền
+
+| Giá trị | Kết quả |
+|---|---|
+| `FALSE` *(hoặc để trống — đang dùng)* | **Không chỗ nào hiện giá tiền**: app của nhà hàng, bếp, admin, email đơn hàng và cả hoá đơn |
+| `TRUE` | Giá hiện lại y như cũ ở tất cả những chỗ đó |
+
+**Giá vẫn nằm nguyên trong cột `Price` của tab `Items`**, và tiền vẫn được tính và ghi vào cột `Total` / `InvoiceTotal` của tab `Orders` như thường. Công tắc này **chỉ che phần hiển thị** — không mất dữ liệu, không phải nhập lại gì khi bật lên.
+
+Đổi `FALSE` ↔ `TRUE` là xong, **không cần deploy lại**.
+
+Khi tắt, chỗ nào vốn ghi `$24.50 / kg` sẽ chỉ còn `per kg`; cột *Amount* trong bảng và các dòng tổng tiền biến mất hẳn chứ không để trống.
 
 ### `DeliveryDays` — các ngày giao hàng trong tuần
 
@@ -476,6 +490,7 @@ Tuỳ chỗ hỏng mà app xử lý khác nhau (cột bên phải là những g�
 - **Cho một món đặt được số lẻ**: để `Unit` là `kg`/`l` là đủ. Muốn khác đi thì điền `Step` (ví dụ `0.5`, hoặc `1` để ép về số nguyên). Không cần deploy lại.
 - **Thêm nhà hàng mới**: thêm dòng vào tab `Restaurants` với email Google của họ.
 - **Đổi email bếp trung tâm nhận đơn**: sửa `CentralKitchenEmail` trong tab `Settings`.
+- **Bật/tắt hiển thị giá tiền**: sửa `ShowPrices` trong tab `Settings` (`TRUE` / `FALSE`). Giá vẫn luôn được lưu trong sheet.
 - **Đổi ngày giao hàng**: sửa `DeliveryDays` trong tab `Settings`, ví dụ `Tuesday, Friday`.
 - **Đổi hạn chốt đơn**: sửa `OrderCutoffHour` / `OrderCutoffDaysBefore` trong tab `Settings`.
 - **Xoá giỏ hàng đang lưu dở của một nhà hàng**: xoá nội dung ô `DraftJSON` ở dòng của họ trong tab `Drafts`.

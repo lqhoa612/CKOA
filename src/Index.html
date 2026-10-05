@@ -88,7 +88,7 @@
     <!-- Cart bar -->
     <div id="cart-bar" class="cart-bar hidden">
       <div class="cart-summary">
-        <span id="cart-count">0 items</span> &middot; <span id="cart-total">$0.00</span>
+        <span id="cart-count">0 items</span><span id="cart-sep"> &middot; </span><span id="cart-total">$0.00</span>
       </div>
       <button id="checkout-btn">View cart</button>
     </div>
@@ -108,7 +108,7 @@
               <th>Item</th>
               <th class="num">Qty</th>
               <th>Unit</th>
-              <th class="num">Amount</th>
+              <th class="num" id="checkout-amount-head">Amount</th>
             </tr>
           </thead>
           <tbody id="checkout-items"></tbody>
@@ -117,7 +117,7 @@
 
       <div class="checkout-actions">
         <button id="clear-cart-btn" class="link-btn">Clear all items</button>
-        <span class="checkout-total">Total: <strong id="checkout-total">$0.00</strong></span>
+        <span class="checkout-total" id="checkout-total-wrap">Total: <strong id="checkout-total">$0.00</strong></span>
       </div>
 
       <label class="field-label">Delivery date</label>

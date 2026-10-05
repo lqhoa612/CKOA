@@ -298,6 +298,9 @@ function getConfig_() {
     // Categories the kitchen only carries for someone else, e.g. "Fortuna".
     // Listed and totalled apart from the kitchen's own goods in the order email.
     thirdPartyCategories: parseCategoryList_(config.ThirdPartyCategories),
+    // Money stays in the sheet either way; this only decides whether anyone
+    // sees it in the app or the emails. Off unless the sheet turns it on.
+    showPrices: String(config.ShowPrices || '').trim().toUpperCase() === 'TRUE',
     orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
     orderCutoffDaysBefore: numberOr_(config.OrderCutoffDaysBefore, 1),
     // Where data-corruption alerts go. Defaults to whoever owns the script,
@@ -753,6 +756,8 @@ function apiOrderPageData_(restaurant) {
     // Kitchen and admin accounts do not order, so skip the catalogue work.
     items: restaurant.role ? [] : getActiveItems_(),
     deliveryDates: restaurant.role ? [] : getUpcomingDeliveryDates_(),
+    // Every role reads this, so the kitchen and admin screens know too.
+    showPrices: getConfig_().showPrices,
     // Comes back with the page rather than in a call of its own: the list is
     // needed to draw the catalogue, so a second round trip would only make
     // the app slower to open.
@@ -947,10 +952,11 @@ function sendOrderEmail_(data) {
   var split = splitThirdParty_(data.lineItems, config.thirdPartyCategories);
   var hasThirdParty = split.groups.length > 0;
 
+  var money = config.showPrices;
   var pushItems = function (items) {
     items.forEach(function (li) {
       textLines.push('- ' + li.name + ' x' + formatQty_(li.qty) + ' ' + li.unit +
-                     ' = ' + formatCurrency_(li.lineTotal));
+                     (money ? ' = ' + formatCurrency_(li.lineTotal) : ''));
       if (li.note) textLines.push('    Note: ' + li.note);
     });
   };
@@ -960,17 +966,19 @@ function sendOrderEmail_(data) {
   textLines.push(hasThirdParty ? 'CENTRAL KITCHEN ITEMS:' : 'Items:');
   pushItems(split.own);
   if (hasThirdParty) {
-    textLines.push('Central kitchen total: ' + formatCurrency_(split.ownTotal));
+    if (money) textLines.push('Central kitchen total: ' + formatCurrency_(split.ownTotal));
     split.groups.forEach(function (g) {
       textLines.push('');
       textLines.push(g.category.toUpperCase() + ' - delivered with this order, not ' +
                      'the central kitchen\'s goods:');
       pushItems(g.items);
-      textLines.push(g.category + ' total: ' + formatCurrency_(g.total));
+      if (money) textLines.push(g.category + ' total: ' + formatCurrency_(g.total));
     });
-    textLines.push('');
-    textLines.push('ORDER TOTAL: ' + formatCurrency_(data.total));
-  } else {
+    if (money) {
+      textLines.push('');
+      textLines.push('ORDER TOTAL: ' + formatCurrency_(data.total));
+    }
+  } else if (money) {
     textLines.push('');
     textLines.push('Total: ' + formatCurrency_(data.total));
   }
@@ -996,14 +1004,20 @@ function sendOrderEmail_(data) {
               escapeHtml_(li.note) + '</div>'
             : '') + '</td>' +
         '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:center;">' + formatQty_(li.qty) + ' ' + escapeHtml_(li.unit) + '</td>' +
-        '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.lineTotal) + '</td>' +
+        (money
+          ? '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;">' +
+            formatCurrency_(li.lineTotal) + '</td>'
+          : '') +
         '</tr>'
       );
     }).join('');
   };
 
+  // Dropping the Amount column changes how far every full-width row spans.
+  var cols = money ? 3 : 2;
+
   var sectionHead = function (title, note) {
-    return '<tr><td colspan="3" style="padding:14px 8px 4px;border-bottom:1px solid #ccc;">' +
+    return '<tr><td colspan="' + cols + '" style="padding:14px 8px 4px;border-bottom:1px solid #ccc;">' +
       '<strong>' + escapeHtml_(title) + '</strong>' +
       (note ? '<div style="font-size:12px;color:#777;font-weight:normal;margin-top:2px;">' +
               escapeHtml_(note) + '</div>' : '') +
@@ -1011,6 +1025,7 @@ function sendOrderEmail_(data) {
   };
 
   var subtotalRow = function (label, amount) {
+    if (!money) return '';
     return '<tr><td colspan="2" style="padding:6px 8px;text-align:right;">' +
       escapeHtml_(label) + '</td>' +
       '<td style="padding:6px 8px;text-align:right;">' + formatCurrency_(amount) + '</td></tr>';
@@ -1042,13 +1057,15 @@ function sendOrderEmail_(data) {
     '<thead><tr>' +
     '<th style="text-align:left;padding:4px 8px;border-bottom:2px solid #333;">Item</th>' +
     '<th style="text-align:center;padding:4px 8px;border-bottom:2px solid #333;">Qty</th>' +
-    '<th style="text-align:right;padding:4px 8px;border-bottom:2px solid #333;">Amount</th>' +
+    (money ? '<th style="text-align:right;padding:4px 8px;border-bottom:2px solid #333;">Amount</th>' : '') +
     '</tr></thead><tbody>' + rowsHtml + '</tbody>' +
-    '<tfoot><tr>' +
-    '<td colspan="2" style="padding:8px;text-align:right;border-top:2px solid #333;">' +
-      '<strong>' + (hasThirdParty ? 'Order total' : 'Total') + '</strong></td>' +
-    '<td style="padding:8px;text-align:right;border-top:2px solid #333;"><strong>' +
-      formatCurrency_(data.total) + '</strong></td></tr></tfoot>' +
+    (money
+      ? '<tfoot><tr>' +
+        '<td colspan="2" style="padding:8px;text-align:right;border-top:2px solid #333;">' +
+          '<strong>' + (hasThirdParty ? 'Order total' : 'Total') + '</strong></td>' +
+        '<td style="padding:8px;text-align:right;border-top:2px solid #333;"><strong>' +
+          formatCurrency_(data.total) + '</strong></td></tr></tfoot>'
+      : '') +
     '</table>' +
     (data.notes
       ? '<div style="margin-top:18px;padding:12px 14px;border-left:4px solid #c0392b;background:#fdf3f2;max-width:480px;">' +
@@ -1069,6 +1086,7 @@ function sendOrderEmail_(data) {
 
 function invoiceHtml_(data) {
   var config = getConfig_();
+  var money = config.showPrices;
   var o = data.order;
 
   var rowsHtml = data.lines.map(function (li) {
@@ -1085,8 +1103,12 @@ function invoiceHtml_(data) {
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;' +
         (short ? 'color:#c0392b;' : 'color:#bbb;') + '">' + (short ? '-' + formatQty_(li.shortQty) : '0') + '</td>' +
       '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.unit) + '</td>' +
-      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.price) + '</td>' +
-      '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.lineTotal) + '</td>' +
+      (money
+        ? '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' +
+            formatCurrency_(li.price) + '</td>' +
+          '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">' +
+            formatCurrency_(li.lineTotal) + '</td>'
+        : '') +
       '</tr>';
   }).join('');
 
@@ -1130,13 +1152,17 @@ function invoiceHtml_(data) {
     '<th style="text-align:center;padding:6px 8px;border-bottom:2px solid #333;">Supplied</th>' +
     '<th style="text-align:center;padding:6px 8px;border-bottom:2px solid #333;">Short</th>' +
     '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333;">Unit</th>' +
-    '<th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333;">Price</th>' +
-    '<th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333;">Amount</th>' +
+    (money
+      ? '<th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333;">Price</th>' +
+        '<th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333;">Amount</th>'
+      : '') +
     '</tr></thead><tbody>' + rowsHtml + '</tbody>' +
-    '<tfoot><tr><td colspan="6" style="padding:10px 8px;text-align:right;border-top:2px solid #333;">' +
-    '<strong>Total invoiced</strong></td>' +
-    '<td style="padding:10px 8px;text-align:right;border-top:2px solid #333;font-size:15px;">' +
-    '<strong>' + formatCurrency_(data.invoiceTotal) + '</strong></td></tr></tfoot>' +
+    (money
+      ? '<tfoot><tr><td colspan="5" style="padding:10px 8px;text-align:right;border-top:2px solid #333;">' +
+        '<strong>Total invoiced</strong></td>' +
+        '<td colspan="2" style="padding:10px 8px;text-align:right;border-top:2px solid #333;font-size:15px;">' +
+        '<strong>' + formatCurrency_(data.invoiceTotal) + '</strong></td></tr></tfoot>'
+      : '') +
     '</table>' +
     noteHtml +
     orderNoteHtml +
@@ -1145,6 +1171,7 @@ function invoiceHtml_(data) {
 
 function sendInvoiceEmail_(data) {
   var config = getConfig_();
+  var invoiceMoney = config.showPrices;
   if (!config.invoiceEmail) {
     throw new Error('No invoice recipient is set. Fill in InvoiceEmail (or CentralKitchenEmail) in the Settings tab.');
   }
@@ -1166,11 +1193,12 @@ function sendInvoiceEmail_(data) {
   data.lines.forEach(function (li) {
     textLines.push('- ' + li.name + ': ordered ' + formatQty_(li.orderedQty) +
       ', supplied ' + formatQty_(li.qty) + ' ' + li.unit +
-      (li.shortQty > 0 ? ' (short ' + formatQty_(li.shortQty) + ')' : '') + ' = ' + formatCurrency_(li.lineTotal));
+      (li.shortQty > 0 ? ' (short ' + formatQty_(li.shortQty) + ')' : '') +
+      (invoiceMoney ? ' = ' + formatCurrency_(li.lineTotal) : ''));
     if (li.note) textLines.push('    Note: ' + li.note);
   });
   textLines.push('');
-  textLines.push('Total invoiced: ' + formatCurrency_(data.invoiceTotal));
+  if (invoiceMoney) textLines.push('Total invoiced: ' + formatCurrency_(data.invoiceTotal));
   if (data.kitchenNote) {
     textLines.push('');
     textLines.push('Note from the kitchen: ' + data.kitchenNote);

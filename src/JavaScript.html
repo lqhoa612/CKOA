@@ -15,6 +15,7 @@
     cart: {}, // id -> qty
     itemNotes: {}, // id -> one-off instruction for that item on this order
     filter: { query: '', category: '' },
+    showPrices: false, // the sheet decides; money stays hidden until it says so
     draftSavedAt: '', // when the saved list was last written, for the banner
     kitchen: { pending: [], invoiced: [] },
     admin: { orders: [], restaurants: [], summary: {} },
@@ -37,6 +38,8 @@
   };
 
   function onLoaded(data) {
+    state.showPrices = !!data.showPrices;
+    applyPriceVisibility();
     state.restaurant = data.restaurant;
     state.items = data.items;
     state.deliveryDates = data.deliveryDates;
@@ -145,6 +148,19 @@
   window.addEventListener('pagehide', function () {
     if (draftTimer) saveDraftNow();
   });
+
+  /**
+   * Hides the money that lives in the page shell rather than in rendered
+   * markup. Everything else checks state.showPrices where it is drawn.
+   */
+  function applyPriceVisibility() {
+    ['cart-total', 'checkout-total-wrap', 'checkout-amount-head'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', !state.showPrices);
+    });
+    var sep = document.getElementById('cart-sep');
+    if (sep) sep.classList.toggle('hidden', !state.showPrices);
+  }
 
   /** Stays hidden when no logo is configured, or when the URL fails to load. */
   function showLogo(url) {
@@ -393,7 +409,8 @@
           '<div class="item-info">' +
           '<div class="item-name">' + escapeHtml(item.name) +
           (hasDetail ? '<span class="detail-caret" aria-hidden="true"></span>' : '') + '</div>' +
-          '<div class="item-meta">' + formatCurrency(item.price) + ' / ' + escapeHtml(item.unit) +
+          '<div class="item-meta">' +
+          (state.showPrices ? formatCurrency(item.price) + ' / ' : 'per ') + escapeHtml(item.unit) +
           (item.step < 1 ? ' &middot; ' + formatQty(item.step) + ' steps' : '') +
           (item.maxQty > 0 ? ' &middot; max ' + formatQty(item.maxQty) : '') + '</div>' +
           '</div>' +
@@ -539,7 +556,9 @@
     if (!lines.length) { bar.classList.add('hidden'); return; }
     bar.classList.remove('hidden');
     document.getElementById('cart-count').textContent = itemCountLabel(lines.length);
-    document.getElementById('cart-total').textContent = formatCurrency(cartTotal());
+    if (state.showPrices) {
+      document.getElementById('cart-total').textContent = formatCurrency(cartTotal());
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -562,9 +581,9 @@
         '<td>' + escapeHtml(l.name) + '</td>' +
         '<td class="num">' + formatQty(l.qty) + '</td>' +
         '<td>' + escapeHtml(l.unit) + '</td>' +
-        '<td class="num">' + formatCurrency(l.price * l.qty) + '</td>' +
+        (state.showPrices ? '<td class="num">' + formatCurrency(l.price * l.qty) + '</td>' : '') +
         '</tr>' +
-        '<tr class="note-row"><td colspan="4">' +
+        '<tr class="note-row"><td colspan="' + (state.showPrices ? 4 : 3) + '">' +
         '<input class="item-note-input' + (l.note ? '' : ' empty') + '" type="text" ' +
         'data-id="' + escapeHtml(l.id) + '" maxlength="200" ' +
         'value="' + escapeHtml(l.note) + '" ' +
@@ -583,7 +602,9 @@
         saveDraftSoon();
       });
     });
-    document.getElementById('checkout-total').textContent = formatCurrency(cartTotal());
+    if (state.showPrices) {
+      document.getElementById('checkout-total').textContent = formatCurrency(cartTotal());
+    }
 
     var datesHtml = state.deliveryDates.map(function (d) {
       var selected = d.iso === state.selectedDate ? ' selected' : '';
@@ -718,7 +739,8 @@
       }).join(', ');
       return (
         '<div class="order-card">' +
-        '<div class="order-top"><span>' + escapeHtml(o.orderId) + '</span><span>' + formatCurrency(o.total) + '</span></div>' +
+        '<div class="order-top"><span>' + escapeHtml(o.orderId) + '</span>' +
+        (state.showPrices ? '<span>' + formatCurrency(o.total) + '</span>' : '') + '</div>' +
         '<div class="order-items">' + escapeHtml(itemsSummary) + '</div>' +
         '<div class="order-items">Delivery: ' + escapeHtml(o.deliveryDate) + ' &middot; Placed: ' + escapeHtml(o.timestamp) + '</div>' +
         (o.notes ? '<div class="order-note">Note: ' + escapeHtml(o.notes) + '</div>' : '') +
@@ -910,7 +932,7 @@
       var short = (o.supplied || []).filter(function (li) { return li.shortQty > 0; });
       return '<div class="order-card">' +
         '<div class="order-top"><span>' + escapeHtml(o.invoiceRef || o.orderId) + '</span>' +
-        '<span>' + formatCurrency(o.invoiceTotal) + '</span></div>' +
+        (state.showPrices ? '<span>' + formatCurrency(o.invoiceTotal) + '</span>' : '') + '</div>' +
         '<div class="order-items">' + escapeHtml(o.restaurantName) +
         ' &middot; delivery ' + escapeHtml(o.deliveryDate) + '</div>' +
         (short.length
@@ -988,7 +1010,7 @@
       statTile(s.orderCount, 'orders') +
       statTile(s.pendingCount, 'awaiting kitchen') +
       statTile(s.invoicedCount, 'invoiced') +
-      statTile(formatCurrency(s.invoicedTotal), 'invoiced value');
+      (state.showPrices ? statTile(formatCurrency(s.invoicedTotal), 'invoiced value') : '');
   }
 
   function statTile(value, label) {
@@ -1020,7 +1042,9 @@
       var invoiced = String(o.status) === 'Invoiced';
       return '<div class="order-card admin-card" data-order="' + escapeHtml(o.orderId) + '">' +
         '<div class="order-top"><span>' + escapeHtml(o.restaurantName) + '</span>' +
-        '<span>' + formatCurrency(invoiced ? o.invoiceTotal : o.total) + '</span></div>' +
+        (state.showPrices
+          ? '<span>' + formatCurrency(invoiced ? o.invoiceTotal : o.total) + '</span>'
+          : '') + '</div>' +
         '<div class="order-items">' + escapeHtml(o.orderId) +
         ' &middot; delivery ' + escapeHtml(o.deliveryDate) +
         ' &middot; ' + escapeHtml(o.ordererName) + '</div>' +
@@ -1049,9 +1073,10 @@
     var invoiced = String(o.status) === 'Invoiced' && (o.supplied || []).length;
     var lines = invoiced ? o.supplied : o.items;
 
+    var amountHead = state.showPrices ? '<th class="num">Amount</th>' : '';
     var head = invoiced
-      ? '<tr><th>Item</th><th class="num">Ordered</th><th class="num">Supplied</th><th>Unit</th><th class="num">Amount</th></tr>'
-      : '<tr><th>Item</th><th class="num">Qty</th><th>Unit</th><th class="num">Amount</th></tr>';
+      ? '<tr><th>Item</th><th class="num">Ordered</th><th class="num">Supplied</th><th>Unit</th>' + amountHead + '</tr>'
+      : '<tr><th>Item</th><th class="num">Qty</th><th>Unit</th>' + amountHead + '</tr>';
 
     var rows = (lines || []).map(function (li) {
       if (invoiced) {
@@ -1062,7 +1087,7 @@
           '<td class="num muted">' + formatQty(li.orderedQty) + '</td>' +
           '<td class="num' + (short ? ' short' : '') + '">' + formatQty(li.qty) + '</td>' +
           '<td>' + escapeHtml(li.unit) + '</td>' +
-          '<td class="num">' + formatCurrency(li.lineTotal) + '</td>' +
+          (state.showPrices ? '<td class="num">' + formatCurrency(li.lineTotal) + '</td>' : '') +
           '</tr>';
       }
       return '<tr>' +
@@ -1070,7 +1095,7 @@
         (li.note ? '<div class="line-note">&#9656; ' + escapeHtml(li.note) + '</div>' : '') + '</td>' +
         '<td class="num">' + formatQty(li.qty) + '</td>' +
         '<td>' + escapeHtml(li.unit) + '</td>' +
-        '<td class="num">' + formatCurrency(li.lineTotal) + '</td>' +
+        (state.showPrices ? '<td class="num">' + formatCurrency(li.lineTotal) + '</td>' : '') +
         '</tr>';
     }).join('');
 
@@ -1100,7 +1125,7 @@
       var short = (o.supplied || []).filter(function (li) { return li.shortQty > 0; });
       return '<div class="order-card">' +
         '<div class="order-top"><span>' + escapeHtml(o.invoiceRef || o.orderId) + '</span>' +
-        '<span>' + formatCurrency(o.invoiceTotal) + '</span></div>' +
+        (state.showPrices ? '<span>' + formatCurrency(o.invoiceTotal) + '</span>' : '') + '</div>' +
         '<div class="order-items">' + escapeHtml(o.restaurantName) +
         ' &middot; order ' + escapeHtml(o.orderId) +
         ' &middot; delivery ' + escapeHtml(o.deliveryDate) + '</div>' +

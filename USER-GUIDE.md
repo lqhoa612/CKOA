@@ -98,6 +98,8 @@ Filtering **never loses your quantities**. Anything already in the cart stays th
 
 <img src="assets/guide/en/03-choose-items.png" width="330" alt="The item list with BBQ Pork set to 2.5 kg">
 
+> 💲 **Prices are currently switched off.** Your manager has hidden them. Some screenshots in this guide still show prices — ignore those bits, everything else is accurate. If prices are switched back on they appear in exactly those places.
+
 Tap **+** and **−** to change the quantity. Once an item's quantity is above zero, its **−** button turns red, so you can see at a glance what you have chosen.
 
 **See what an item actually is.** Any item with a **small ▾ arrow next to its name** opens up when you tap the name: a photo, and a note on what is in the bag, how far it has been prepped, and how long it keeps. Tap again to close. Items with a photo also show a **small thumbnail to the left of the name**, so they are easy to spot while scrolling.
