@@ -27,6 +27,15 @@ This app replaces ordering by text message or phone call: you pick your items, t
 
 You only do this **once per phone or computer**. After that, opening the link takes you straight into the app.
 
+> 🚫 **Do not open the link straight from Messenger, Facebook, Zalo or Instagram.**
+> Chat apps open links in their own built-in browser, and **Google will not show its permission screen there** — so the app can never finish setting up, however many times you tap the link.
+>
+> Open it in **Safari (iPhone)** or **Chrome (Android)** instead:
+> - **iPhone**: tap **⋯** at the top right → **Open in Safari**
+> - **Android**: tap **⋮** at the top right → **Open in Chrome**
+>
+> You only need to do this **once per phone**. Once you have approved it there, tapping the link from Messenger works fine afterwards.
+
 The first time, Google asks a few questions and shows **a warning screen that looks alarming**. That is normal for an app a company builds for itself — Google has not "verified" it, which is not the same as the app being unsafe. Just follow the four steps below.
 
 > The four pictures in this part are **illustrations** drawn to make the steps clear. Google's real screens may word things slightly differently, but the buttons are in the same places.
@@ -215,6 +224,8 @@ Once invoiced, the order moves from **To fulfil** to **Invoiced**. Invoices **ca
 
 | What you see | What to do |
 |---|---|
+| A red **"Please open this in your normal browser"** box | You opened the link inside Messenger/Facebook/Zalo. Tap **⋯** (iPhone) or **⋮** (Android) at the top right and choose to open it in Safari/Chrome. Once per phone only. |
+| A red **"One more step: approve the app"** box | This Google account has not approved the app yet. Close the page, open the link again, and follow [Part A, steps 2–4](#step-2--at-the-warning-screen-tap-advanced). |
 | The **"Google hasn't verified this app"** warning | Normal the first time. Follow [Part A, steps 2–4](#step-2--at-the-warning-screen-tap-advanced). |
 | It says your **email isn't recognised** | You're signed in with the wrong account, or your manager hasn't added this email to the list yet. See [Part D](#part-d--if-you-signed-in-with-the-wrong-email); if it still fails, tell your manager. |
 | The app shows **a different restaurant** | Wrong email. See [Part D](#part-d--if-you-signed-in-with-the-wrong-email). |

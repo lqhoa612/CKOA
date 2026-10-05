@@ -372,6 +372,10 @@ App gọi sang API bằng `UrlFetchApp`, kèm email người dùng và một **m
 
 > Lần đầu mỗi nhà hàng mở link App, Google sẽ hỏi họ cấp quyền cho script (để app biết email của họ và gọi được sang API). Họ cũng gặp màn hình *"Google hasn't verified this app"* → **Advanced → Go to … (unsafe)**. Chỉ một lần cho mỗi tài khoản.
 
+> ⚠️ **Khi gửi link cho nhà hàng qua Messenger/Zalo, dặn họ mở bằng Safari hoặc Chrome, đừng bấm thẳng trong app chat.** Google **không cho** chạy màn hình cấp quyền bên trong trình duyệt nhúng của app chat, nên lần đầu sẽ không bao giờ cấp quyền được. App nhận ra trường hợp này và hiện hướng dẫn, nhưng dặn trước thì đỡ một vòng.
+>
+> Cấp quyền xong một lần rồi thì mở từ Messenger cũng chạy bình thường.
+
 Gửi cho các nhà hàng link [HUONG-DAN-SU-DUNG.md](./HUONG-DAN-SU-DUNG.md) — hướng dẫn 4 bước đầu tiên có hình minh hoạ, viết cho người không rành công nghệ.
 
 ### 4.4 Khi sửa code về sau
