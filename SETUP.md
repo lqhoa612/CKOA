@@ -25,10 +25,46 @@ Tạo một Google Sheet mới, đặt tên tuỳ ý (vd "CKOA Data"), và tạo
 | KitchenName | Saigon Express Central Kitchen |
 | OrderCutoffHour | 16 |
 | OrderCutoffDaysBefore | 1 |
+| DeliveryDays | Tuesday, Friday |
+| ThirdPartyCategories | Fortuna |
 
 `InvoiceEmail` là nơi nhận invoice do bếp xuất (thường là kế toán). Để trống thì dùng `CentralKitchenEmail`. Nhà hàng luôn được CC.
 
 `KitchenName` là tên bên bán hiện trên invoice. Để trống thì dùng `AppTitle`.
+
+### `DeliveryDays` — các ngày giao hàng trong tuần
+
+Viết **tên thứ bằng tiếng Anh, cách nhau bằng dấu phẩy**. Sửa xong app nhận ngay, **không cần deploy lại**.
+
+| Viết | Nghĩa |
+|---|---|
+| `Tuesday, Friday` | giao thứ Ba và thứ Sáu *(đang dùng)* |
+| `Tue, Fri` | viết tắt cũng được |
+| `Mon, Wed, Fri` | ba ngày một tuần |
+| `Monday` | một ngày một tuần |
+| *(để trống)* | mặc định thứ Ba và thứ Sáu |
+
+Thứ tự viết không quan trọng, viết hoa thường không quan trọng, trùng lặp tự bỏ. Ngăn cách bằng `,` `;` `/` đều được.
+
+> Gõ sai tên thứ (ví dụ `Tuseday`) thì app **bỏ qua từ đó và gửi email cảnh báo cho admin**. Nếu không đọc được từ nào thì giữ nguyên mặc định — đổi lịch giao của cả chuỗi vì một lỗi chính tả thì nguy hiểm hơn nhiều.
+
+Đổi `DeliveryDays` **không ảnh hưởng đơn cũ** — đơn đã đặt vẫn giữ ngày giao đã chọn.
+
+### `ThirdPartyCategories` — hàng giao giúp nhà cung cấp khác
+
+Khai những `Category` mà bếp trung tâm **chỉ giao giúp**, không phải hàng của mình. Nhiều nhà cung cấp thì cách nhau bằng dấu phẩy: `Fortuna, Acme`.
+
+Món thuộc nhóm này trong **email đơn hàng** sẽ được:
+
+- Liệt kê thành **một mục riêng**, tách khỏi hàng của bếp
+- Có **tổng tiền riêng** cho từng nhà cung cấp
+- Không cộng vào dòng *Central kitchen total*
+
+Email vẫn có dòng **Order total** là tổng tất cả, để nhà hàng biết tổng phải trả cho cả đơn.
+
+Tên khai ở đây phải **trùng với cột `Category`** trong tab `Items` (không phân biệt hoa thường). Để trống thì email giữ nguyên dạng cũ, một danh sách một tổng.
+
+> ⚠️ **Hoá đơn (invoice) bên bếp xuất thì chưa tách.** Mới chỉ tách ở email đơn hàng. Nếu kế toán cần hoá đơn cũng tách riêng phần Fortuna thì báo để làm tiếp.
 
 **Logo** (`LogoUrl`): để trống thì app không hiện logo, chỉ hiện tên nhà hàng như bình thường. Muốn có logo thì điền một đường link ảnh mà trình duyệt tải được:
 
@@ -436,13 +472,14 @@ Tuỳ chỗ hỏng mà app xử lý khác nhau (cột bên phải là những g�
 - **Cho một món đặt được số lẻ**: để `Unit` là `kg`/`l` là đủ. Muốn khác đi thì điền `Step` (ví dụ `0.5`, hoặc `1` để ép về số nguyên). Không cần deploy lại.
 - **Thêm nhà hàng mới**: thêm dòng vào tab `Restaurants` với email Google của họ.
 - **Đổi email bếp trung tâm nhận đơn**: sửa `CentralKitchenEmail` trong tab `Settings`.
+- **Đổi ngày giao hàng**: sửa `DeliveryDays` trong tab `Settings`, ví dụ `Tuesday, Friday`.
 - **Đổi hạn chốt đơn**: sửa `OrderCutoffHour` / `OrderCutoffDaysBefore` trong tab `Settings`.
 - **Xoá giỏ hàng đang lưu dở của một nhà hàng**: xoá nội dung ô `DraftJSON` ở dòng của họ trong tab `Drafts`.
 - **Lịch sử đơn hàng**: xem trực tiếp tab `Orders`, hoặc trong app mục "Đơn đã đặt" (mỗi nhà hàng chỉ thấy đơn của mình).
 
 ## Ghi chú kỹ thuật
 
-- Ngày giao hàng cố định thứ 4 và thứ 6 hàng tuần (`DELIVERY_WEEKDAYS` trong `Code.gs`), có thể sửa nếu cần thêm ngày khác. App chỉ hiện **2 ngày giao gần nhất** còn trong hạn chốt đơn (`UPCOMING_DELIVERY_COUNT`).
+- Ngày giao hàng khai ở `DeliveryDays` trong tab `Settings`, sửa trong Sheet là xong, không cần deploy lại. App chỉ hiện **2 ngày giao gần nhất** còn trong hạn chốt đơn (`UPCOMING_DELIVERY_COUNT` trong `Code.gs`).
 - Múi giờ đặt ở `timeZone` trong `appsscript.json` (hiện là `Australia/Hobart`) và được dùng cho toàn bộ app qua `Session.getScriptTimeZone()` — đổi một chỗ đó là đổi hết ngày giao, hạn chốt đơn và mã đơn hàng. Sau khi sửa manifest nhớ deploy version mới. Phép cộng ngày trong `Code.gs` tính theo lịch nên không lệch vào tuần đổi giờ mùa hè (DST).
 - Danh tính người dùng lấy từ `Session.getActiveUser()` phía deployment **App**, rồi được API kiểm tra lại với tab `Restaurants` trước mỗi thao tác — trình duyệt không tự khai được mình là ai.
 - `doGet` có chốt chặn: nếu không xác định được người đang đăng nhập (tức là đang chạy trên deployment API), nó trả về trang thông báo thay vì giao diện đặt hàng. Nếu không có chốt này, người lạ mở URL API sẽ chạy code dưới quyền admin.
