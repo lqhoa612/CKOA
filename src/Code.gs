@@ -36,7 +36,18 @@ var SHEET_NAMES = {
   DRAFTS: 'Drafts'
 };
 
-var DELIVERY_WEEKDAYS = [3, 5]; // Wednesday, Friday (Sunday = 0)
+// Used only when the Settings tab has no DeliveryDays row (Sunday = 0).
+var DEFAULT_DELIVERY_WEEKDAYS = [2, 5]; // Tuesday, Friday
+
+var WEEKDAY_NUMBERS = {
+  sun: 0, sunday: 0,
+  mon: 1, monday: 1,
+  tue: 2, tues: 2, tuesday: 2,
+  wed: 3, weds: 3, wednesday: 3,
+  thu: 4, thur: 4, thurs: 4, thursday: 4,
+  fri: 5, friday: 5,
+  sat: 6, saturday: 6
+};
 var UPCOMING_DELIVERY_COUNT = 2;
 var MAX_NOTES_LENGTH = 2000;
 /** A per-item note is an instruction, not an essay. */
@@ -262,6 +273,11 @@ function getConfig_() {
     kitchenName: String(config.KitchenName || '').trim() || String(config.AppTitle || 'Central Kitchen'),
     // Order cut-off: OrderCutoffHour o'clock, OrderCutoffDaysBefore days ahead
     // of the delivery date. Default: 4pm the day before.
+    // Which weekdays deliveries run on, e.g. "Tuesday, Friday".
+    deliveryDays: parseDeliveryDays_(config.DeliveryDays),
+    // Categories the kitchen only carries for someone else, e.g. "Fortuna".
+    // Listed and totalled apart from the kitchen's own goods in the order email.
+    thirdPartyCategories: parseCategoryList_(config.ThirdPartyCategories),
     orderCutoffHour: numberOr_(config.OrderCutoffHour, 16),
     orderCutoffDaysBefore: numberOr_(config.OrderCutoffDaysBefore, 1),
     // Where data-corruption alerts go. Defaults to whoever owns the script,
@@ -444,7 +460,7 @@ function getUpcomingDeliveryDates_() {
 
   for (var d = 0; dates.length < UPCOMING_DELIVERY_COUNT && d < 60; d++) {
     var check = addDays_(now, d);
-    if (DELIVERY_WEEKDAYS.indexOf(check.getDay()) === -1) continue;
+    if (config.deliveryDays.indexOf(check.getDay()) === -1) continue;
     var deadline = cutoffDeadlineFor_(check, config);
     if (now.getTime() >= deadline.getTime()) continue; // cut-off has passed
     dates.push({
@@ -842,6 +858,8 @@ function apiSubmitOrder_(restaurant, order) {
     lineItems.push({
       id: product.id,
       name: product.name,
+      // Needed to tell the kitchen's own goods from ones it only delivers.
+      category: product.category,
       unit: product.unit,
       price: product.price,
       // Carried along so the kitchen screen knows how finely this item splits.
@@ -906,14 +924,36 @@ function sendOrderEmail_(data) {
   textLines.push('Ordered by: ' + data.ordererName);
   textLines.push('Delivery date: ' + data.deliveryLabel);
   textLines.push('Delivery address: ' + data.deliveryAddress);
+  var split = splitThirdParty_(data.lineItems, config.thirdPartyCategories);
+  var hasThirdParty = split.groups.length > 0;
+
+  var pushItems = function (items) {
+    items.forEach(function (li) {
+      textLines.push('- ' + li.name + ' x' + formatQty_(li.qty) + ' ' + li.unit +
+                     ' = ' + formatCurrency_(li.lineTotal));
+      if (li.note) textLines.push('    Note: ' + li.note);
+    });
+  };
+
   textLines.push('');
-  textLines.push('Items:');
-  data.lineItems.forEach(function (li) {
-    textLines.push('- ' + li.name + ' x' + formatQty_(li.qty) + ' ' + li.unit + ' = ' + formatCurrency_(li.lineTotal));
-    if (li.note) textLines.push('    Note: ' + li.note);
-  });
-  textLines.push('');
-  textLines.push('Total: ' + formatCurrency_(data.total));
+  // An order with nothing from an outside supplier reads exactly as before.
+  textLines.push(hasThirdParty ? 'CENTRAL KITCHEN ITEMS:' : 'Items:');
+  pushItems(split.own);
+  if (hasThirdParty) {
+    textLines.push('Central kitchen total: ' + formatCurrency_(split.ownTotal));
+    split.groups.forEach(function (g) {
+      textLines.push('');
+      textLines.push(g.category.toUpperCase() + ' - delivered with this order, not ' +
+                     'the central kitchen\'s goods:');
+      pushItems(g.items);
+      textLines.push(g.category + ' total: ' + formatCurrency_(g.total));
+    });
+    textLines.push('');
+    textLines.push('ORDER TOTAL: ' + formatCurrency_(data.total));
+  } else {
+    textLines.push('');
+    textLines.push('Total: ' + formatCurrency_(data.total));
+  }
   if (data.notes) {
     textLines.push('');
     textLines.push('*** NOTES FROM THE RESTAURANT ***');
@@ -926,8 +966,8 @@ function sendOrderEmail_(data) {
   textLines.push(data.restaurant.name);
   var body = textLines.join('\n');
 
-  var rowsHtml = data.lineItems
-    .map(function (li) {
+  var itemRowsHtml = function (items) {
+    return items.map(function (li) {
       return (
         '<tr>' +
         '<td style="padding:4px 8px;border-bottom:1px solid #eee;">' + escapeHtml_(li.name) +
@@ -939,8 +979,38 @@ function sendOrderEmail_(data) {
         '<td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;">' + formatCurrency_(li.lineTotal) + '</td>' +
         '</tr>'
       );
-    })
-    .join('');
+    }).join('');
+  };
+
+  var sectionHead = function (title, note) {
+    return '<tr><td colspan="3" style="padding:14px 8px 4px;border-bottom:1px solid #ccc;">' +
+      '<strong>' + escapeHtml_(title) + '</strong>' +
+      (note ? '<div style="font-size:12px;color:#777;font-weight:normal;margin-top:2px;">' +
+              escapeHtml_(note) + '</div>' : '') +
+      '</td></tr>';
+  };
+
+  var subtotalRow = function (label, amount) {
+    return '<tr><td colspan="2" style="padding:6px 8px;text-align:right;">' +
+      escapeHtml_(label) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;">' + formatCurrency_(amount) + '</td></tr>';
+  };
+
+  var rowsHtml;
+  if (hasThirdParty) {
+    rowsHtml = sectionHead('Central kitchen items') +
+      itemRowsHtml(split.own) +
+      subtotalRow('Central kitchen total', split.ownTotal) +
+      split.groups.map(function (g) {
+        return sectionHead(g.category,
+                 'Delivered with this order. Not the central kitchen\'s goods - ' +
+                 'billed by ' + g.category + '.') +
+          itemRowsHtml(g.items) +
+          subtotalRow(g.category + ' total', g.total);
+      }).join('');
+  } else {
+    rowsHtml = itemRowsHtml(data.lineItems);
+  }
 
   var htmlBody =
     '<div style="font-family:Arial,sans-serif;font-size:14px;color:#222;">' +
@@ -954,8 +1024,11 @@ function sendOrderEmail_(data) {
     '<th style="text-align:center;padding:4px 8px;border-bottom:2px solid #333;">Qty</th>' +
     '<th style="text-align:right;padding:4px 8px;border-bottom:2px solid #333;">Amount</th>' +
     '</tr></thead><tbody>' + rowsHtml + '</tbody>' +
-    '<tfoot><tr><td colspan="2" style="padding:6px 8px;text-align:right;"><strong>Total</strong></td>' +
-    '<td style="padding:6px 8px;text-align:right;"><strong>' + formatCurrency_(data.total) + '</strong></td></tr></tfoot>' +
+    '<tfoot><tr>' +
+    '<td colspan="2" style="padding:8px;text-align:right;border-top:2px solid #333;">' +
+      '<strong>' + (hasThirdParty ? 'Order total' : 'Total') + '</strong></td>' +
+    '<td style="padding:8px;text-align:right;border-top:2px solid #333;"><strong>' +
+      formatCurrency_(data.total) + '</strong></td></tr></tfoot>' +
     '</table>' +
     (data.notes
       ? '<div style="margin-top:18px;padding:12px 14px;border-left:4px solid #c0392b;background:#fdf3f2;max-width:480px;">' +
@@ -1110,6 +1183,78 @@ function formatQty_(n) {
   var num = Number(n);
   if (isNaN(num)) num = 0;
   return String(Math.round(num * 1000) / 1000);
+}
+
+/**
+ * Splits an order into the kitchen's own goods and the ones it only carries
+ * for an outside supplier, so the email can total them apart. Groups keep the
+ * order the categories first appear in.
+ */
+function splitThirdParty_(lineItems, thirdPartyCategories) {
+  // Lower-cased here as well as in the config reader: matching must not depend
+  // on who called this.
+  var wanted = (thirdPartyCategories || []).map(function (c) {
+    return String(c).trim().toLowerCase();
+  });
+  var own = [];
+  var byCategory = {};
+  var order = [];
+
+  lineItems.forEach(function (li) {
+    var name = String(li.category || '');
+    if (wanted.indexOf(name.trim().toLowerCase()) === -1) {
+      own.push(li);
+      return;
+    }
+    if (!byCategory[name]) { byCategory[name] = []; order.push(name); }
+    byCategory[name].push(li);
+  });
+
+  var sum = function (items) {
+    return items.reduce(function (t, li) { return t + (Number(li.lineTotal) || 0); }, 0);
+  };
+  return {
+    own: own,
+    ownTotal: sum(own),
+    groups: order.map(function (name) {
+      return { category: name, items: byCategory[name], total: sum(byCategory[name]) };
+    })
+  };
+}
+
+/**
+ * "Tuesday, Friday" -> [2, 5]. Day names beat numbers here: an admin editing
+ * a spreadsheet should not have to remember that Sunday is 0.
+ */
+function parseDeliveryDays_(value) {
+  var text = String(value == null ? '' : value).trim();
+  if (!text) return DEFAULT_DELIVERY_WEEKDAYS.slice();
+
+  var days = [];
+  var unknown = [];
+  text.split(/[,;/|]+/).forEach(function (part) {
+    var token = part.trim().toLowerCase().replace(/\.$/, '');
+    if (!token) return;
+    var n = WEEKDAY_NUMBERS.hasOwnProperty(token) ? WEEKDAY_NUMBERS[token]
+          : (/^[0-6]$/.test(token) ? Number(token) : -1);
+    if (n < 0) { unknown.push(part.trim()); return; }
+    if (days.indexOf(n) === -1) days.push(n);
+  });
+
+  if (unknown.length) {
+    reportBadCell_('Settings!DeliveryDays',
+      'Could not read: ' + unknown.join(', ') + '. Write weekday names separated by ' +
+      'commas, e.g. "Tuesday, Friday".', text);
+  }
+  // Falling back silently would quietly change everyone's delivery schedule.
+  return days.length ? days.sort() : DEFAULT_DELIVERY_WEEKDAYS.slice();
+}
+
+/** "Fortuna, Other Supplier" -> ["fortuna", "other supplier"], lower case. */
+function parseCategoryList_(value) {
+  return String(value == null ? '' : value).split(/[,;|]+/)
+    .map(function (c) { return c.trim().toLowerCase(); })
+    .filter(function (c) { return !!c; });
 }
 
 function effectiveUserEmail_() {

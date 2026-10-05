@@ -128,7 +128,7 @@ On this screen:
 - **Notes for the kitchen (whole order)** — optional. This is where you **ask for anything that isn't on the list**, or add instructions covering the order as a whole. For example: *"Could we also get 2 kg of garlic chives if the kitchen has any?"*
 
 > ⏰ **Orders close at 4pm the day before delivery.**
-> For a Wednesday delivery, order by 4pm Tuesday. For a Friday delivery, order by 4pm Thursday.
+> For a Tuesday delivery, order by 4pm Monday. For a Friday delivery, order by 4pm Thursday.
 > After the cut-off, that date **disappears from the list** and you can only choose the next delivery day.
 
 ### Step 4 — Tap **Place order**
@@ -232,7 +232,7 @@ Once invoiced, the order moves from **To fulfil** to **Invoiced**. Invoices **ca
 
 ## Key things to remember
 
-1. **Orders close at 4pm the day before delivery.** Wednesday delivery → order by 4pm Tuesday. Friday delivery → order by 4pm Thursday.
+1. **Orders close at 4pm the day before delivery.** Tuesday delivery → order by 4pm Monday. Friday delivery → order by 4pm Thursday.
 2. **For items sold by weight, type the number straight into the box** — `2.5`, for instance. Don't tap + dozens of times.
 3. **Need something unusual? Put it in the Notes box** — the central kitchen reads it.
 4. **Check the order carefully before tapping Place order** — there is no cancel button.

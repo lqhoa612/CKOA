@@ -128,7 +128,7 @@ Trên màn hình này:
 - **Notes for the kitchen (ghi chú chung)** — không bắt buộc. Đây là chỗ để **xin những món không có trong danh sách**, hoặc dặn dò chung cho cả đơn. Ví dụ: *"Cho xin thêm 2 kg hẹ nếu bếp còn."*
 
 > ⏰ **Hạn đặt hàng: 4 giờ chiều ngày hôm trước.**
-> Giao thứ 4 thì phải đặt xong trước 4pm thứ 3. Giao thứ 6 thì trước 4pm thứ 5.
+> Giao thứ 3 thì phải đặt xong trước 4pm thứ 2. Giao thứ 6 thì trước 4pm thứ 5.
 > Quá giờ, ngày đó sẽ **không còn hiện ra** trong danh sách nữa — bạn chỉ chọn được ngày giao kế tiếp.
 
 ### Bước 4 — Bấm **Place order**
@@ -232,7 +232,7 @@ Xuất hoá đơn xong, đơn chuyển từ tab **To fulfil** sang tab **Invoice
 
 ## Những điều cần nhớ
 
-1. **Hạn đặt là 4 giờ chiều ngày hôm trước.** Giao thứ 4 → đặt trước 4pm thứ 3. Giao thứ 6 → đặt trước 4pm thứ 5.
+1. **Hạn đặt là 4 giờ chiều ngày hôm trước.** Giao thứ 3 → đặt trước 4pm thứ 2. Giao thứ 6 → đặt trước 4pm thứ 5.
 2. **Món theo ký thì gõ thẳng số vào ô**, ví dụ `2.5` — đừng bấm nút + hàng chục lần.
 3. **Cần món lạ thì ghi vào ô Notes**, bếp trung tâm sẽ đọc.
 4. **Kiểm tra kỹ trước khi bấm Place order** — app không có nút huỷ đơn.
