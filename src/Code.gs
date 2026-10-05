@@ -183,10 +183,16 @@ function callApi_(action, data) {
   }
 
   var result;
+  var text = '';
   try {
-    result = JSON.parse(response.getContentText());
+    text = response.getContentText();
+    result = JSON.parse(text);
   } catch (err) {
-    throw new Error('The server sent back an unexpected response. Please contact your administrator.');
+    // The old message said only "unexpected response", which told nobody
+    // anything. The status code and the first line of what actually came back
+    // are what separate a timeout from a sign-in page from a dead deployment.
+    throw new Error('The server sent back an unexpected response. ' +
+      describeApiResponse_(response, text) + ' Please show this to your administrator.');
   }
   if (!result.ok) throw new Error(result.message || 'Something went wrong.');
   return result.data;
@@ -208,6 +214,7 @@ function saveDraft(draft) { return callApi_('saveDraft', draft); }
 function doPost(e) {
   try {
     badCellsThisRun = [];
+    badCellEmailsSent = 0;
     var body = JSON.parse(e.postData.contents);
     var secret = PropertiesService.getScriptProperties().getProperty(PROP_API_SECRET);
     if (!secret || body.secret !== secret) {
@@ -1270,6 +1277,42 @@ function parseCategoryList_(value) {
     .filter(function (c) { return !!c; });
 }
 
+/**
+ * Turns a non-JSON reply into something an admin can act on. Apps Script
+ * answers with an HTML page when the API deployment times out, needs
+ * authorising again, or no longer exists - each looks different in the body.
+ */
+function describeApiResponse_(response, text) {
+  var code = '';
+  try { code = response.getResponseCode(); } catch (err) { code = '?'; }
+
+  var plain = String(text || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  var hint = '';
+  if (/sign in|signin|accounts\.google\.com|choose an account/i.test(plain)) {
+    hint = ' The API deployment is asking for a sign-in, so its access is probably ' +
+           'not set to "Anyone".';
+  } else if (/exceeded maximum execution time|timed out/i.test(plain)) {
+    hint = ' The API deployment ran out of time. Usually the Orders tab has grown ' +
+           'too large, or a loop is reading the sheet over and over.';
+  } else if (/not found|deleted|no longer exists/i.test(plain)) {
+    hint = ' The API deployment URL no longer resolves - check API_URL in Script ' +
+           'Properties against the current API deployment.';
+  } else if (/authoriz|permission/i.test(plain)) {
+    hint = ' The API deployment needs to be re-authorised: open it once in the ' +
+           'Apps Script editor and run any function.';
+  }
+
+  return '(HTTP ' + code + ')' + hint +
+         (plain ? ' Server said: "' + plain.slice(0, 200) + '".' : '');
+}
+
 function effectiveUserEmail_() {
   try {
     return Session.getEffectiveUser().getEmail() || '';
@@ -1288,8 +1331,47 @@ function effectiveUserEmail_() {
  * at any scale.
  */
 var badCellsThisRun = []; // reset per request in doPost
+var badCellEmailsSent = 0;  // per request, see MAX_BAD_CELL_EMAILS
+var reportingBadCell = false;
+
+/** One bad cell must never be able to send hundreds of emails in one request. */
+var MAX_BAD_CELL_EMAILS = 5;
+
+/**
+ * The admin address, read straight from the Settings tab.
+ *
+ * Deliberately NOT via getConfig_: getConfig_ parses DeliveryDays, which can
+ * itself report a bad cell, which would call getConfig_ again. One typo in
+ * DeliveryDays used to cost thousands of sheet reads and emails that way.
+ */
+function adminAlertEmail_() {
+  try {
+    var values = getSheet_(SHEET_NAMES.SETTINGS).getDataRange().getValues();
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][0] || '').trim() === 'AdminEmail') {
+        var email = String(values[i][1] || '').trim();
+        if (email) return email;
+      }
+    }
+  } catch (err) {
+    // fall through to the script owner
+  }
+  return effectiveUserEmail_();
+}
 
 function reportBadCell_(location, context, raw) {
+  // Belt and braces: even if some future caller reintroduces a loop, it stops
+  // here instead of melting a request.
+  if (reportingBadCell) return;
+  reportingBadCell = true;
+  try {
+    reportBadCellInner_(location, context, raw);
+  } finally {
+    reportingBadCell = false;
+  }
+}
+
+function reportBadCellInner_(location, context, raw) {
   // Recorded even when the email is throttled: the admin screen should show
   // every problem found on this scan, not just the ones worth emailing again.
   badCellsThisRun.push({ location: location, context: context });
@@ -1303,12 +1385,8 @@ function reportBadCell_(location, context, raw) {
     cache = null;
   }
 
-  var to;
-  try {
-    to = getConfig_().adminEmail;
-  } catch (err) {
-    to = effectiveUserEmail_();
-  }
+  if (badCellEmailsSent >= MAX_BAD_CELL_EMAILS) return; // still on the admin screen
+  var to = adminAlertEmail_();
   if (!to) return;
 
   var sample = String(raw == null ? '' : raw).slice(0, 500);
@@ -1332,6 +1410,7 @@ function reportBadCell_(location, context, raw) {
 
   try {
     GmailApp.sendEmail(to, '[CKOA] Unreadable cell: ' + location, lines.join('\n'));
+    badCellEmailsSent++;
     if (cache) cache.put(key, '1', 21600); // 6 hours, the cache maximum
   } catch (err) {
     Logger.log('Could not send bad-cell alert: ' + err);
