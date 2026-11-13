@@ -206,6 +206,7 @@ function getKitchenOrders() { return callApi_('getKitchenOrders'); }
 function issueInvoice(payload) { return callApi_('issueInvoice', payload); }
 function getAdminOrders() { return callApi_('getAdminOrders'); }
 function saveDraft(draft) { return callApi_('saveDraft', draft); }
+function getUsageReport(query) { return callApi_('getUsageReport', query); }
 
 // ===========================================================================
 // API SIDE - runs as the admin, owns the spreadsheet and sends the email
@@ -239,6 +240,7 @@ function doPost(e) {
       case 'issueInvoice': data = apiIssueInvoice_(restaurant, body.data || {}); break;
       case 'getAdminOrders': data = apiAdminOrders_(restaurant); break;
       case 'saveDraft': data = apiSaveDraft_(restaurant, body.data || {}); break;
+      case 'getUsageReport': data = apiUsageReport_(restaurant, body.data || {}); break;
       default: return jsonOutput_({ ok: false, message: 'Unknown action.' });
     }
     return jsonOutput_({ ok: true, data: data });
@@ -714,6 +716,105 @@ function scanDraftsForProblems_() {
         'Saved list for ' + r[0] + '. That restaurant starts from an empty cart.', raw);
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Usage report - how much of each item a restaurant got through in a month
+// ---------------------------------------------------------------------------
+
+/**
+ * Nothing new is stored for this. Every order already carries its lines, so
+ * the report is built from the Orders tab on demand. A saved monthly total
+ * would be a second copy of the same numbers, free to drift out of step with
+ * the orders it came from.
+ *
+ * payload: { month: 'YYYY-MM', restaurant: 'name' or '' }
+ */
+function apiUsageReport_(user, payload) {
+  requireAdmin_(user);
+
+  var rows = sheetRowsAsObjects_(getSheet_(SHEET_NAMES.ORDERS));
+  var wantMonth = String((payload && payload.month) || '').trim();
+  var wantRestaurant = String((payload && payload.restaurant) || '').trim();
+
+  // Which months and restaurants exist at all, so the pickers only ever offer
+  // choices that have something behind them.
+  var monthSet = {};
+  var restaurantSet = {};
+  rows.forEach(function (r) {
+    var month = String(r.DeliveryDate || '').slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(month)) monthSet[month] = true;
+    if (r.RestaurantName) restaurantSet[r.RestaurantName] = true;
+  });
+  var months = Object.keys(monthSet).sort().reverse();
+  if (!wantMonth) wantMonth = months[0] || '';
+
+  // Only rows in range get their JSON parsed: that is the expensive part, and
+  // most of the sheet is some other month.
+  var matching = rows.filter(function (r) {
+    if (String(r.DeliveryDate || '').slice(0, 7) !== wantMonth) return false;
+    return !wantRestaurant || String(r.RestaurantName) === wantRestaurant;
+  });
+
+  var byItem = {};
+  var order = [];
+  var pendingOrders = 0;
+
+  var bucket = function (li) {
+    var key = String(li.name || '') + '|' + String(li.unit || '');
+    if (!byItem[key]) {
+      byItem[key] = {
+        name: li.name, unit: li.unit, category: li.category || 'Other',
+        ordered: 0, supplied: 0, amount: 0
+      };
+      order.push(key);
+    }
+    return byItem[key];
+  };
+
+  matching.forEach(function (r) {
+    var invoiced = String(r.Status) === STATUS_INVOICED;
+    var items = parseItemsJson_(r.ItemsJSON, 'Orders!ItemsJSON row ' + r._row,
+      'Order ' + r.OrderID + ' from ' + r.RestaurantName + ', while building the usage report.');
+    items.forEach(function (li) {
+      bucket(li).ordered += Number(li.qty) || 0;
+    });
+
+    if (!invoiced) { pendingOrders++; return; }
+    var supplied = parseItemsJson_(r.SuppliedJSON, 'Orders!SuppliedJSON row ' + r._row,
+      'Order ' + r.OrderID + ' from ' + r.RestaurantName + ', while building the usage report.');
+    supplied.forEach(function (li) {
+      var b = bucket(li);
+      b.supplied += Number(li.qty) || 0;
+      b.amount += Number(li.lineTotal) || 0;
+    });
+  });
+
+  var items = order.map(function (key) {
+    var b = byItem[key];
+    return {
+      name: b.name, unit: b.unit, category: b.category,
+      ordered: roundToStep_(b.ordered, SUPPLY_STEP),
+      supplied: roundToStep_(b.supplied, SUPPLY_STEP),
+      amount: roundToStep_(b.amount, 0.01)
+    };
+  }).sort(function (a, b) {
+    return a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
+  });
+
+  return {
+    months: months,
+    restaurants: Object.keys(restaurantSet).sort(),
+    month: wantMonth,
+    restaurant: wantRestaurant,
+    orderCount: matching.length,
+    // Supplied figures only exist once the kitchen has invoiced, so say how
+    // many orders are still missing from that column.
+    pendingOrders: pendingOrders,
+    items: items,
+    totalAmount: roundToStep_(items.reduce(function (t, i) { return t + i.amount; }, 0), 0.01),
+    showPrices: getConfig_().showPrices
+  };
 }
 
 function apiAdminOrders_(user) {

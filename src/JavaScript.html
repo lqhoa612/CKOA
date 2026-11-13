@@ -64,6 +64,7 @@
     } else if (state.role === 'admin') {
       document.getElementById('nav-admin').classList.remove('hidden');
       document.getElementById('nav-admin-invoices').classList.remove('hidden');
+      document.getElementById('nav-usage').classList.remove('hidden');
       switchView('admin');
     } else {
       restoreDraft(data.draft);
@@ -704,9 +705,10 @@
   document.getElementById('nav-invoiced').addEventListener('click', function () { switchView('invoiced'); });
   document.getElementById('nav-admin').addEventListener('click', function () { switchView('admin'); });
   document.getElementById('nav-admin-invoices').addEventListener('click', function () { switchView('admin-invoices'); });
+  document.getElementById('nav-usage').addEventListener('click', function () { switchView('usage'); });
 
   function switchView(view) {
-    ['catalog', 'history', 'kitchen', 'invoiced', 'admin', 'admin-invoices'].forEach(function (v) {
+    ['catalog', 'history', 'kitchen', 'invoiced', 'admin', 'admin-invoices', 'usage'].forEach(function (v) {
       document.getElementById(v + '-view').classList.toggle('hidden', v !== view);
       var nav = document.getElementById('nav-' + v);
       if (nav) nav.classList.toggle('active', v === view);
@@ -716,6 +718,153 @@
     if (view === 'history') loadHistory();
     if (view === 'kitchen' || view === 'invoiced') loadKitchenOrders(view);
     if (view === 'admin' || view === 'admin-invoices') loadAdminOrders(view);
+    if (view === 'usage') loadUsage();
+  }
+
+  // ---------------------------------------------------------------------
+  // Usage: how much of each item a restaurant got through in a month.
+  // Built from the orders that already exist, not from anything new.
+  // ---------------------------------------------------------------------
+
+  var usageBuilt = false;
+
+  function loadUsage() {
+    var container = document.getElementById('usage-list');
+    container.innerHTML = '<div class="empty-state">Loading...</div>';
+    google.script.run
+      .withSuccessHandler(renderUsage)
+      .withFailureHandler(function (err) {
+        container.innerHTML = '<div class="empty-state">' + escapeHtml(err.message || String(err)) + '</div>';
+      })
+      .getUsageReport({
+        month: document.getElementById('usage-month').value,
+        restaurant: document.getElementById('usage-restaurant').value
+      });
+  }
+
+  /** "2026-11" -> "November 2026", so the picker reads like a date. */
+  function monthLabel(iso) {
+    var parts = String(iso).split('-');
+    var names = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+                 'August', 'September', 'October', 'November', 'December'];
+    var name = names[Number(parts[1]) - 1];
+    return name ? name + ' ' + parts[0] : iso;
+  }
+
+  function renderUsage(data) {
+    // The pickers are filled once, from whatever the orders actually contain.
+    if (!usageBuilt) {
+      var monthSel = document.getElementById('usage-month');
+      monthSel.innerHTML = (data.months || []).map(function (m) {
+        return '<option value="' + escapeHtml(m) + '">' + escapeHtml(monthLabel(m)) + '</option>';
+      }).join('') || '<option value="">No orders yet</option>';
+      monthSel.value = data.month;
+
+      var restSel = document.getElementById('usage-restaurant');
+      restSel.innerHTML = '<option value="">All restaurants</option>' +
+        (data.restaurants || []).map(function (n) {
+          return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+        }).join('');
+      restSel.value = data.restaurant || '';
+
+      monthSel.addEventListener('change', loadUsage);
+      restSel.addEventListener('change', loadUsage);
+      usageBuilt = true;
+    }
+
+    document.getElementById('usage-summary').innerHTML =
+      statTile(data.orderCount, 'orders') +
+      statTile(data.items.length, 'items') +
+      (state.showPrices ? statTile(formatCurrency(data.totalAmount), 'invoiced value') : '');
+
+    // Without this, a half-invoiced month looks like the kitchen under-supplied.
+    var note = document.getElementById('usage-note');
+    if (data.pendingOrders) {
+      var one = data.pendingOrders === 1;
+      note.textContent = data.pendingOrders + (one ? ' order' : ' orders') + ' this month ' +
+        (one ? 'has' : 'have') + ' not been invoiced yet, so the Supplied column does not count ' +
+        (one ? 'it' : 'them') + '.';
+      note.classList.remove('hidden');
+    } else {
+      note.classList.add('hidden');
+    }
+
+    var container = document.getElementById('usage-list');
+    if (!data.items.length) {
+      container.innerHTML = '<div class="empty-state">No orders for this month.</div>';
+      return;
+    }
+
+    var html = '';
+    var lastCategory = null;
+    data.items.forEach(function (i) {
+      if (i.category !== lastCategory) {
+        if (lastCategory !== null) html += '</tbody></table></div>';
+        html += '<div class="category-title">' + escapeHtml(i.category) + '</div>' +
+          '<div class="checkout-table-wrap"><table class="checkout-table"><thead><tr>' +
+          '<th>Item</th><th class="num">Ordered</th><th class="num">Supplied</th><th>Unit</th>' +
+          (state.showPrices ? '<th class="num">Amount</th>' : '') +
+          '</tr></thead><tbody>';
+        lastCategory = i.category;
+      }
+      var short = i.supplied < i.ordered;
+      html += '<tr>' +
+        '<td>' + escapeHtml(i.name) + '</td>' +
+        '<td class="num">' + formatQty(i.ordered) + '</td>' +
+        '<td class="num' + (short ? ' short' : '') + '">' + formatQty(i.supplied) + '</td>' +
+        '<td>' + escapeHtml(i.unit) + '</td>' +
+        (state.showPrices ? '<td class="num">' + formatCurrency(i.amount) + '</td>' : '') +
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<button type="button" class="bulk-btn" id="usage-copy" ' +
+      'style="margin-top:14px;">Copy as a table</button>';
+    container.innerHTML = html;
+
+    document.getElementById('usage-copy').addEventListener('click', function () {
+      copyUsage(data);
+    });
+  }
+
+  /**
+   * Tab separated, so pasting into Sheets or Excel lands in columns. The
+   * accountant wants to pivot these numbers, not read them off a phone.
+   */
+  function copyUsage(data) {
+    var head = ['Category', 'Item', 'Unit', 'Ordered', 'Supplied'];
+    if (state.showPrices) head.push('Amount');
+    var lines = [head.join('\t')];
+    data.items.forEach(function (i) {
+      var row = [i.category, i.name, i.unit, formatQty(i.ordered), formatQty(i.supplied)];
+      if (state.showPrices) row.push(i.amount);
+      lines.push(row.join('\t'));
+    });
+    var text = lines.join('\n');
+
+    var done = function () { toast('Copied - paste into a spreadsheet.'); };
+    var fallback = function () {
+      // Clipboard access is blocked in some embedded views; a selected
+      // textarea still lets them copy by hand.
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:40%;left:5%;width:90%;height:160px;z-index:99';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        done();
+        document.body.removeChild(ta);
+      } catch (err) {
+        toast('Copy the selected text, then tap it away.');
+        ta.addEventListener('blur', function () { ta.remove(); });
+      }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
   }
 
   function loadHistory() {
