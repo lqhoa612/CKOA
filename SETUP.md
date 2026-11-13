@@ -449,6 +449,24 @@ Tài khoản có `Role` = `admin` thấy hai tab, **chỉ đọc, không sửa �
 
 Đầu màn hình **"All orders"** còn hiện khung đỏ cảnh báo ô hỏng, nếu có — xem mục *Khi app không đọc được một ô*.
 
+**Tab "Usage"** — tổng hợp **một tháng dùng hết bao nhiêu của từng món**.
+
+Chọn **tháng** và **nhà hàng** (hoặc *All restaurants*) ở đầu màn hình. Bảng gom theo nhóm món, mỗi món một dòng:
+
+| Cột | Nghĩa |
+|---|---|
+| **Ordered** | Tổng số lượng nhà hàng đã đặt trong tháng |
+| **Supplied** | Tổng số lượng bếp **thực sự giao**, chỉ tính các đơn **đã xuất hoá đơn**. In đỏ khi ít hơn số đặt |
+| **Amount** | Thành tiền theo số thực giao (ẩn khi `ShowPrices` = `FALSE`) |
+
+Nếu trong tháng còn đơn chưa xuất hoá đơn, màn hình ghi rõ **có bao nhiêu đơn chưa tính vào cột Supplied** — không có dòng đó thì cột Supplied trông như bếp giao thiếu.
+
+Nút **Copy as a table** chép toàn bộ bảng dạng TSV, dán thẳng vào Google Sheets hay Excel là ra đúng cột.
+
+> **Không có tab mới nào trong Sheet cho phần này.** Số liệu tính thẳng từ tab `Orders` mỗi lần mở. Lưu sẵn một bảng tổng hợp tháng nghĩa là có hai bản của cùng một con số, và bản lưu sẵn sẽ lệch dần so với đơn hàng thật khi có đơn được sửa hay xuất hoá đơn muộn.
+>
+> Chỉ nên cân nhắc lưu sẵn khi nào tab `Orders` bị cắt theo năm cho nhẹ — lúc đó tháng cũ sẽ không còn dữ liệu để tính.
+
 Màn hình này đọc 500 dòng gần nhất của tab `Orders`. Cần xem xa hơn thì mở thẳng Google Sheet.
 
 ## Khi app không đọc được một ô

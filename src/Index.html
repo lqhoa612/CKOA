@@ -34,6 +34,7 @@
         <button id="nav-invoiced" class="nav-btn hidden">Invoiced</button>
         <button id="nav-admin" class="nav-btn hidden">All orders</button>
         <button id="nav-admin-invoices" class="nav-btn hidden">Invoices</button>
+        <button id="nav-usage" class="nav-btn hidden">Usage</button>
         <button id="nav-account" class="nav-btn ghost">Account</button>
       </nav>
     </header>
@@ -78,6 +79,17 @@
         </select>
       </div>
       <div id="admin-list"></div>
+    </main>
+
+    <!-- Admin: how much of each item went out in a month -->
+    <main id="usage-view" class="hidden">
+      <div class="filter-bar">
+        <select id="usage-month" aria-label="Month"></select>
+        <select id="usage-restaurant" aria-label="Restaurant"></select>
+      </div>
+      <div id="usage-summary" class="summary-row"></div>
+      <div id="usage-note" class="muted small hidden"></div>
+      <div id="usage-list"></div>
     </main>
 
     <!-- Admin: every invoice issued by the kitchen -->
